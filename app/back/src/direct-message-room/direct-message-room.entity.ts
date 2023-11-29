@@ -1,4 +1,13 @@
-import { Column, Entity, Unique, PrimaryGeneratedColumn, ManyToOne, JoinColumn, OneToOne, Index } from 'typeorm';
+import {
+  Column,
+  Entity,
+  Unique,
+  PrimaryGeneratedColumn,
+  ManyToOne,
+  JoinColumn,
+  OneToOne,
+  Index,
+} from 'typeorm';
 import { User } from '../user/user.entity.js';
 
 export type IDirectMessageRoom = {
@@ -86,6 +95,12 @@ export class DirectMessageLog {
     comment: 'utc seconds',
   })
   date: number;
+
+  @Column({
+    type: 'boolean',
+    default: 'false',
+  })
+  is_html: boolean;
 }
 
 export type IDirectMessageLog = {

@@ -27,8 +27,8 @@ export class ApiGameMatchingController {
         return this.gameMatchingService.startMatchmaking(user.id);
     }
 
-    @Post('invite')
-    async inviteMatchMaking(@Req() req: Request, @Body(JsonPipe) targetIds: number[]): Promise<number> {
-        const user = req.user as IUser;
-    }
+    // @Post('invite')
+    // async inviteMatchMaking(@Req() req: Request, @Body(JsonPipe) targetIds: number[]): Promise<number> {
+    //     const user = req.user as IUser;
+    // }
 }

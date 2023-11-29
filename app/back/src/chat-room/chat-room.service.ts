@@ -505,6 +505,7 @@ export class ChatRoomService {
       .addSelect('log.member_id', 'member_id')
       .addSelect('log.content', 'content')
       .addSelect('log.date', 'date')
+      .addSelect('log.is_html', 'is_html')
       .where('log.room_id=:room_id', { room_id })
       .andWhere(
         'NOT EXISTS (SELECT 1 FROM "enemies_from" WHERE "enemies_from"."id"="log"."member_id")',

@@ -39,5 +39,5 @@ export class GameMatchingRequest {
     status: 'waiting' | 'matched';
 
     @Column({ nullable: true })
-    gameRoomId: string;
+    gameRoomId: number;
 }

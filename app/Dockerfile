@@ -11,7 +11,6 @@ FROM archlinux
 WORKDIR /tmp/builder
 COPY ./back     /tmp/builder/back
 COPY ./front    /tmp/builder/front
-COPY ./google   /tmp/builder/google
 COPY --from=certs /tmp/certs /tmp/builder/back/certs
 # select Japan mirror
 RUN echo 'Server = https://mirror.cat.net/archlinux/$repo/os/$arch' > /etc/pacman.d/mirrorlist
@@ -23,7 +22,5 @@ RUN npm run def
 WORKDIR /tmp/builder/front
 RUN npm i
 RUN npm run build
-WORKDIR /tmp/builder/google
-RUN npm i
 WORKDIR /tmp/builder/back
 CMD npm run start

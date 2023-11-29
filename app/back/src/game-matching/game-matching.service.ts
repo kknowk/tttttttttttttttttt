@@ -18,9 +18,9 @@ export class GameMatchingService {
         return this.lastGameRoomId;
     }
 
-    async inviteMatchMaking(requesterId: number, requestedIds: number[]): Promise<{gameRoomId: number}> {
+    // async inviteMatchMaking(requesterId: number, requestedIds: number[]): Promise<{gameRoomId: number}> {
         
-    }
+    // }
 
     async startMatchmaking(playerId: number) {
         // マッチを探す

@@ -1,5 +1,13 @@
 import { User } from '../user/user.entity.js';
-import { Unique, Column, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Unique,
+  Column,
+  Entity,
+  Index,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 
 export const ChatRoomKind = {
   private: 0,
@@ -63,7 +71,8 @@ export const ChatRoomMembershipKind = {
   muted: -1,
   banned: -2,
 } as const;
-export type ChatRoomMembershipKind = (typeof ChatRoomMembershipKind)[keyof typeof ChatRoomMembershipKind];
+export type ChatRoomMembershipKind =
+  (typeof ChatRoomMembershipKind)[keyof typeof ChatRoomMembershipKind];
 
 @Unique(['room_id', 'member_id'])
 @Entity()
@@ -111,7 +120,10 @@ export type IChatRoomMembership = {
 };
 
 export type IPartialChatRoomMembership = {
-  [K in keyof Omit<ChatRoomMembership, 'end_time' | 'room_id' | 'id'>]: ChatRoomMembership[K];
+  [K in keyof Omit<
+    ChatRoomMembership,
+    'end_time' | 'room_id' | 'id'
+  >]: ChatRoomMembership[K];
 };
 
 @Entity()
@@ -147,6 +159,12 @@ export class ChatLog {
     comment: 'utc seconds',
   })
   date: number;
+
+  @Column({
+    type: 'boolean',
+    default: 'false',
+  })
+  is_html: boolean;
 }
 
 export class PartialChatLog {
