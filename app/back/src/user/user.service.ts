@@ -10,6 +10,7 @@ import {
   UserActivityKind,
   fromMimeTypeToUserAvatarFileKind,
   UserAvatarFileKind,
+  Notice,
 } from './user.entity.js';
 import { InsertResult, Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -19,7 +20,11 @@ import { fileTypeFromBlob } from 'file-type';
 import { ConfigService } from '@nestjs/config';
 import { writeFile } from 'fs/promises';
 import { join } from 'path';
-import { IRangeRequestWithUserId, addOrderAndLimit, addWhereCondition } from '../utility/range-request.js';
+import {
+  IRangeRequestWithUserId,
+  addWhereCondition,
+  addOrderAndLimit,
+} from '../utility/range-request.js';
 
 @Injectable()
 export class UserService {
@@ -31,7 +36,10 @@ export class UserService {
     private userRelationshipRepository: Repository<UserRelationship>,
     @InjectRepository(UserDetailInfo)
     private userDetailInfoRepository: Repository<UserDetailInfo>,
-    @InjectRepository(GameLog) private gameLogRepository: Repository<GameLog>,
+    @InjectRepository(GameLog)
+    private gameLogRepository: Repository<GameLog>,
+    @InjectRepository(Notice)
+    private noticeRepository: Repository<Notice>,
     configService: ConfigService,
   ) {
     this.#image_path = configService.get('AVATAR_IMAGE_PATH');
@@ -43,14 +51,16 @@ export class UserService {
 
   #image_path: string;
 
-  public async findOrCreate(id_42: string, loginName: string, email: string): Promise<User> {
+  public async findOrCreate(
+    id_42: string,
+    loginName: string,
+    email: string,
+  ): Promise<IUser> {
     const found_user_id = await this.user42CrossRepository.findOneBy({
-      id_42: id_42,
+      id_42,
     });
     if (found_user_id != null) {
-      const found_user = await this.userRepository.findOneBy({
-        id: found_user_id.id,
-      });
+      const found_user = await this.findById(found_user_id.id);
       return found_user;
     }
     const tmpUser = new User();
@@ -59,10 +69,13 @@ export class UserService {
     const user = await this.userRepository.save(tmpUser);
     await this.user42CrossRepository.save({ id_42: id_42, id: user.id });
     await this.userDetailInfoRepository.save({ id: user.id, email });
-    return user;
+    return user.to_interface();
   }
 
-  public async test_find_or_create(id: number, displayName: string): Promise<IUser> {
+  public async test_find_or_create(
+    id: number,
+    displayName: string,
+  ): Promise<IUser> {
     const found_user = await this.userRepository.findOneBy({ id: id });
     if (found_user) {
       return found_user.to_interface();
@@ -91,16 +104,32 @@ export class UserService {
     return name;
   }
 
-  public async update_user_activity(id: number, kind?: UserActivityKind): Promise<void> {
+  public async update_user_activity(
+    id: number,
+    kind?: UserActivityKind,
+  ): Promise<void> {
     const time = this.#calc_time();
     if (kind == null) {
-      await this.userRepository.update({ id: id }, { last_activity_timestamp: time });
+      await this.userRepository.update(
+        { id: id },
+        { last_activity_timestamp: time },
+      );
     } else {
-      await this.userRepository.update({ id: id }, { last_activity_timestamp: time, activity_kind: kind });
+      await this.userRepository.update(
+        { id: id },
+        { last_activity_timestamp: time, activity_kind: kind },
+      );
     }
   }
 
-  public async get_friends(request: IRangeRequestWithUserId): Promise<Omit<IUser, 'two_factor_authentication_required' | 'is_two_factor_authenticated'>[]> {
+  public async get_friends(
+    request: IRangeRequestWithUserId,
+  ): Promise<
+    Omit<
+      IUser,
+      'two_factor_authentication_required' | 'is_two_factor_authenticated'
+    >[]
+  > {
     /*
 		WITH "friends"("id") AS (SELECT "to_id" FROM "UserRelationship" WHERE "from_id"=$id AND "relationship"=1)
 		SELECT * FROM "User" AS "u" INNER JOIN "friends" AS "f" ON "u"."id"="f"."id";
@@ -124,18 +153,25 @@ export class UserService {
     return users;
   }
 
-  public async findById(id: number, update_activity?: true): Promise<IUser | null> {
+  public async findById(
+    id: number,
+    update_activity?: true,
+  ): Promise<IUser | null> {
     if (update_activity) {
       this.userRepository.createQueryBuilder().update({
         last_activity_timestamp: this.#calc_time(),
-        activity_kind: () => 'CASE WHEN "activity_kind" > 1 THEN "activity_kind" ELSE 1 END',
+        activity_kind: () =>
+          'CASE WHEN "activity_kind" > 1 THEN "activity_kind" ELSE 1 END',
       });
     }
     const user = await this.userRepository.findOneBy({ id });
     return user?.to_interface();
   }
 
-  public async get_lowest_relationship(id0: number, id1: number): Promise<UserRelationshipKind> {
+  public async get_lowest_relationship(
+    id0: number,
+    id1: number,
+  ): Promise<UserRelationshipKind> {
     const literal = await this.userRelationshipRepository
       .createQueryBuilder()
       .select('MIN(relationship)', 'value')
@@ -147,7 +183,11 @@ export class UserService {
     return literal?.value ?? UserRelationshipKind.stranger;
   }
 
-  public async set_relationship(requester_id: number, target_id: number, relationship: UserRelationshipKind) {
+  public async set_relationship(
+    requester_id: number,
+    target_id: number,
+    relationship: UserRelationshipKind,
+  ) {
     const result: InsertResult = await this.userRelationshipRepository.upsert(
       {
         from_id: requester_id,
@@ -165,7 +205,10 @@ export class UserService {
     );
   }
 
-  public async set_two_factor_authentication_required(user_id: number, two_factor_authentication_required: boolean) {
+  public async set_two_factor_authentication_required(
+    user_id: number,
+    two_factor_authentication_required: boolean,
+  ) {
     await this.userRepository.update(
       {
         id: user_id,
@@ -194,7 +237,13 @@ export class UserService {
   }
 
   public async get_email(user_id: number) {
-    const email = (await this.userDetailInfoRepository.createQueryBuilder().select('email').where('id=:user_id', { user_id }).getRawOne())?.email;
+    const email = (
+      await this.userDetailInfoRepository
+        .createQueryBuilder()
+        .select('email')
+        .where('id=:user_id', { user_id })
+        .getRawOne()
+    )?.email;
     if (typeof email !== 'string') return null;
     return email;
   }
@@ -214,7 +263,9 @@ export class UserService {
 
   public async set_avatar(user_id: number, blob: Blob) {
     if (blob.size > 1024 * 1024) return false;
-    const kind = fromMimeTypeToUserAvatarFileKind((await fileTypeFromBlob(blob)).mime);
+    const kind = fromMimeTypeToUserAvatarFileKind(
+      (await fileTypeFromBlob(blob)).mime,
+    );
     if (kind == null) return false;
     const path = join(this.#image_path, user_id.toString());
     const buffer = Buffer.from(await blob.arrayBuffer());
@@ -227,11 +278,18 @@ export class UserService {
   }
 
   public async get_avatar_kind(user_id: number) {
-    const one = await this.userDetailInfoRepository.createQueryBuilder().select('avatar_kind').where('id=:id', { id: user_id }).getRawOne();
+    const one = await this.userDetailInfoRepository
+      .createQueryBuilder()
+      .select('avatar_kind')
+      .where('id=:id', { id: user_id })
+      .getRawOne();
     return one?.avatar_kind as UserAvatarFileKind | null;
   }
 
-  public async find_by_partial_name(request: IRangeRequestWithUserId, name: string): Promise<IUserWithRelationship[]> {
+  public async find_by_partial_name(
+    request: IRangeRequestWithUserId,
+    name: string,
+  ): Promise<IUserWithRelationship[]> {
     /*
 		SELECT * FROM "User" LEFT JOIN "UserRelationship" ON "User"."Id" = "UserRelationship"."to_id" AND "UserRelationship"."to_id"
 			WHERE "u.displayName" LIKE "%:name%";
@@ -243,7 +301,10 @@ export class UserService {
       .addSelect('COALESCE(ur.ur_relationship, 0)', 'relationship')
       .distinctOn(['u.id'])
       .leftJoin(
-        (qb) => qb.select(['ur.relationship', 'ur.to_id', 'ur.from_id']).from(UserRelationship, 'ur'),
+        (qb) =>
+          qb
+            .select(['ur.relationship', 'ur.to_id', 'ur.from_id'])
+            .from(UserRelationship, 'ur'),
         'ur',
         'ur.ur_to_id=u.id AND ur.ur_from_id=:user_id',
         { user_id: request.user_id },
@@ -258,7 +319,10 @@ export class UserService {
     return await this.userRepository.exist({ where: { id: user_id } });
   }
 
-  public async get_users(requester_id: number, user_ids: number[]): Promise<IUserWithRelationship[]> {
+  public async get_users(
+    requester_id: number,
+    user_ids: number[],
+  ): Promise<IUserWithRelationship[]> {
     const query = this.userRepository
       .createQueryBuilder('u')
       .select('u.id', 'id')
@@ -266,7 +330,10 @@ export class UserService {
       .addSelect('COALESCE(ur.ur_relationship, 0)', 'relationship')
       .distinctOn(['u.id'])
       .leftJoin(
-        (qb) => qb.select(['ur.relationship', 'ur.to_id', 'ur.from_id']).from(UserRelationship, 'ur'),
+        (qb) =>
+          qb
+            .select(['ur.relationship', 'ur.to_id', 'ur.from_id'])
+            .from(UserRelationship, 'ur'),
         'ur',
         'ur.ur_to_id=u.id AND ur.ur_from_id=:user_id',
         { user_id: requester_id },
@@ -274,6 +341,32 @@ export class UserService {
       .where('1')
       .whereInIds(user_ids);
     const result = await query.getRawMany();
+    return result;
+  }
+
+  public async notify(user_id: number, content: string) {
+    const query = this.noticeRepository
+      .createQueryBuilder()
+      .insert()
+      .values({
+        user_id,
+        content,
+      })
+      .returning('id');
+    const result = await query.execute();
+    const id = result.generatedMaps[0].id;
+    return id as number;
+  }
+
+  public async get_notice(rangeRequest: IRangeRequestWithUserId) {
+    let query = this.noticeRepository
+      .createQueryBuilder()
+      .select('id', 'id')
+      .addSelect('content', 'content')
+      .where('user_id=:user_id', { user_id: rangeRequest.user_id });
+    query = addWhereCondition(rangeRequest, query, 'id', true);
+    query = addOrderAndLimit(rangeRequest, query, 'id');
+    const result = await query.getRawMany<{ id: number; content: string }>();
     return result;
   }
 }

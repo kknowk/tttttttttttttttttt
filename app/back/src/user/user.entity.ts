@@ -1,11 +1,21 @@
-import { Column, Entity, JoinColumn, ManyToOne, OneToOne, PrimaryColumn, PrimaryGeneratedColumn, Unique } from 'typeorm';
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  OneToOne,
+  PrimaryColumn,
+  PrimaryGeneratedColumn,
+  Unique,
+} from 'typeorm';
 
 export const UserActivityKind = {
   logout: 0,
   login: 1,
   in_game: 2,
 } as const;
-export type UserActivityKind = (typeof UserActivityKind)[keyof typeof UserActivityKind];
+export type UserActivityKind =
+  (typeof UserActivityKind)[keyof typeof UserActivityKind];
 
 @Entity()
 export class User {
@@ -45,7 +55,8 @@ export class User {
       displayName: this.displayName,
       last_activity_timestamp: this.last_activity_timestamp,
       activity_kind: this.activity_kind,
-      two_factor_authentication_required: this.two_factor_authentication_required,
+      two_factor_authentication_required:
+        this.two_factor_authentication_required,
       is_two_factor_authenticated: false,
     };
   }
@@ -86,9 +97,12 @@ export const UserRelationshipKind = {
   friend: 1,
   banned: -1,
 } as const;
-export type UserRelationshipKind = (typeof UserRelationshipKind)[keyof typeof UserRelationshipKind];
+export type UserRelationshipKind =
+  (typeof UserRelationshipKind)[keyof typeof UserRelationshipKind];
 
-export function fromStringToUserRelationshipKind(value: string): UserRelationshipKind | null {
+export function fromStringToUserRelationshipKind(
+  value: string,
+): UserRelationshipKind | null {
   switch (value) {
     case 'stranger':
       return UserRelationshipKind.stranger;
@@ -141,9 +155,12 @@ export const UserAvatarFileKind = {
   jpegxl: 1,
   png: 2,
 } as const;
-export type UserAvatarFileKind = (typeof UserAvatarFileKind)[keyof typeof UserAvatarFileKind];
+export type UserAvatarFileKind =
+  (typeof UserAvatarFileKind)[keyof typeof UserAvatarFileKind];
 
-export function fromMimeTypeToUserAvatarFileKind(type?: string): UserAvatarFileKind | null {
+export function fromMimeTypeToUserAvatarFileKind(
+  type?: string,
+): UserAvatarFileKind | null {
   switch (type) {
     case 'image/jxl':
       return UserAvatarFileKind.png;
@@ -156,7 +173,9 @@ export function fromMimeTypeToUserAvatarFileKind(type?: string): UserAvatarFileK
   }
 }
 
-export function fromAvatarFileKindToMimeType(kind?: UserAvatarFileKind): string | null {
+export function fromAvatarFileKindToMimeType(
+  kind?: UserAvatarFileKind,
+): string | null {
   switch (kind) {
     case UserAvatarFileKind.jpeg:
       return 'image/jpeg';
@@ -196,5 +215,40 @@ export class UserDetailInfo {
 export type IUserWithRelationship = {
   relationship: UserRelationshipKind;
 } & {
-  [K in keyof Omit<IUser, 'last_activity_timestamp' | 'activity_kind' | 'two_factor_authentication_required' | 'is_two_factor_authenticated'>]: IUser[K];
+  [K in keyof Omit<
+    IUser,
+    | 'last_activity_timestamp'
+    | 'activity_kind'
+    | 'two_factor_authentication_required'
+    | 'is_two_factor_authenticated'
+  >]: IUser[K];
+};
+
+@Entity()
+export class Notice {
+  @PrimaryColumn()
+  id: number;
+
+  @OneToOne(() => User, { nullable: false, cascade: ['remove'] })
+  @JoinColumn({
+    name: 'user_id',
+    referencedColumnName: 'id',
+  })
+  private _user_id: never;
+
+  @Column({
+    type: 'int',
+    default: 0,
+  })
+  user_id: number;
+
+  @Column({
+    type: 'varchar',
+    default: '',
+  })
+  content: string;
+}
+
+export type INotice = {
+  [K in keyof Notice]: Notice[K];
 };

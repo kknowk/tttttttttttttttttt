@@ -1,12 +1,31 @@
-import { MiddlewareConsumer, Module, NestModule, RequestMethod } from '@nestjs/common';
+import {
+  MiddlewareConsumer,
+  Module,
+  NestModule,
+  RequestMethod,
+} from '@nestjs/common';
 import { AppController } from './app.controller.js';
 import { JwtModule, JwtService } from '@nestjs/jwt';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { User, User42Cross, UserDetailInfo, UserRelationship } from './user/user.entity.js';
+import {
+  Notice,
+  User,
+  User42Cross,
+  UserDetailInfo,
+  UserRelationship,
+} from './user/user.entity.js';
 import { GameMatchingRequest } from './game-matching/game-matching.entity.js';
-import { ChatLog, ChatRoom, ChatRoomMembership } from './chat-room/chat-room.entity.js';
-import { DirectMessageLog, DirectMessageRoom, DirectMessageRoomMembership } from './direct-message-room/direct-message-room.entity.js';
+import {
+  ChatLog,
+  ChatRoom,
+  ChatRoomMembership,
+} from './chat-room/chat-room.entity.js';
+import {
+  DirectMessageLog,
+  DirectMessageRoom,
+  DirectMessageRoomMembership,
+} from './direct-message-room/direct-message-room.entity.js';
 import { ApiGameController } from './game/api-game.controller.js';
 import { PassportModule } from '@nestjs/passport';
 import { ApiUserController } from './user/api-user.controller.js';
@@ -29,6 +48,7 @@ import { text } from 'express';
 import { ApiGameMatchingController } from './game-matching/api-game-matching.controller.js';
 import { GameGateway } from './game/game.gateway.js';
 import { JsonPipe } from './custom-pipe/json-pipe.js';
+import { ScheduleModule } from '@nestjs/schedule';
 
 const entities: Function[] = [
   User,
@@ -43,6 +63,7 @@ const entities: Function[] = [
   DirectMessageLog,
   GameMatchingRequest,
   GameLog,
+  Notice,
 ];
 
 @Module({
@@ -99,6 +120,7 @@ const entities: Function[] = [
       inject: [ConfigService],
     }),
     ConfigModule,
+    ScheduleModule.forRoot(),
   ],
 })
 export class AppModule implements NestModule {
@@ -108,7 +130,12 @@ export class AppModule implements NestModule {
       method: RequestMethod.ALL,
     });
     consumer
-      .apply(text({ defaultCharset: 'utf-8', type: ['application/json', 'text/plain'] }))
-      .forRoutes(ApiDirectMessageRoomController, ApiChatRoomController);
+      .apply(
+        text({
+          defaultCharset: 'utf-8',
+          type: ['application/json', 'text/plain'],
+        }),
+      )
+      .forRoutes(ApiDirectMessageRoomController, ApiChatRoomController, ApiGameMatchingController);
   }
 }

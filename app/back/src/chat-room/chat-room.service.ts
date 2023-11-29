@@ -13,8 +13,13 @@ import {
   IChatRoomMembership,
   IPartialChatRoomMembership,
 } from './chat-room.entity.js';
-import { IRangeRequestWithUserId, addOrderAndLimit, addWhereCondition } from '../utility/range-request.js';
+import {
+  IRangeRequestWithUserId,
+  addOrderAndLimit,
+  addWhereCondition,
+} from '../utility/range-request.js';
 import { genSalt, hash } from 'bcrypt';
+import { Cron } from '@nestjs/schedule';
 
 @Injectable()
 export class ChatRoomService {
@@ -32,7 +37,9 @@ export class ChatRoomService {
     private membershipRepository: Repository<ChatRoomMembership>,
   ) {}
 
-  async get_belonging_rooms(request: IRangeRequestWithUserId): Promise<IChatRoom[]> {
+  async get_belonging_rooms(
+    request: IRangeRequestWithUserId,
+  ): Promise<IChatRoom[]> {
     /*
 		WITH "memberships" ("id") AS (SELECT "room_id" FROM "ChatRoomMembership" WHERE "member_id"=$requester_id AND "kind" >= 0)
 		SELECT "cr"."id", "cr"."name", "cr"."kind" FROM "ChatRoom" AS "cr" INNER JOIN "memberships" AS "m" ON "cr"."id"="m"."id";
@@ -65,20 +72,42 @@ export class ChatRoomService {
       .andWhere('kind < 0');
     let query = this.roomRepository
       .createQueryBuilder('cr')
-      .addCommonTableExpression(banned_memberships, 'memberships', this.#cteOptions_id)
+      .addCommonTableExpression(
+        banned_memberships,
+        'memberships',
+        this.#cteOptions_id,
+      )
       .select('cr.id', 'id')
       .addSelect('cr.kind', 'kind')
       .addSelect('cr.name', 'name')
       .addSelect('cr.owner_id', 'owner_id')
       .addSelect('cr.start_inclusive_log_id', 'start_inclusive_log_id')
-      .where('NOT EXISTS (SELECT 1 FROM "memberships" WHERE "memberships"."id"="cr"."id")');
+      .where(
+        'NOT EXISTS (SELECT 1 FROM "memberships" WHERE "memberships"."id"="cr"."id")',
+      );
     query = addWhereCondition(request, query, 'cr.id', true);
     query = addOrderAndLimit(request, query, 'cr.id');
     const result = await query.getRawMany<IChatRoom>();
     return result;
   }
 
-  async get_membership(room_id: number, requester_id: number): Promise<IChatRoomMembership | null> {
+  @Cron('*/10 * * * *')
+  async unmute_memberships() {
+    const query = this.membershipRepository
+      .createQueryBuilder()
+      .update()
+      .set({
+        kind: 1,
+      })
+      .where('kind=-1');
+    const result = await query.execute();
+    console.log('cron: 10 minutes update' + result);
+  }
+
+  async get_membership(
+    room_id: number,
+    requester_id: number,
+  ): Promise<IChatRoomMembership | null> {
     const runner = this.dataSource.createQueryRunner();
     await runner.connect();
     await runner.startTransaction();
@@ -88,26 +117,18 @@ export class ChatRoomService {
         .select('id', 'id')
         .addSelect('kind', 'kind')
         .addSelect('end_time', 'end_time')
-        .where('room_id=:room_id AND member_id=:requester_id', { room_id, requester_id })
+        .where('room_id=:room_id AND member_id=:requester_id', {
+          room_id,
+          requester_id,
+        })
         .getRawOne()) as IChatRoomMembership | null;
       if (membership == null) {
         await runner.commitTransaction();
         return null;
       }
+      await runner.commitTransaction();
       membership.room_id = room_id;
       membership.member_id = requester_id;
-      if (membership.kind === ChatRoomMembershipKind.muted && Date.now() >= membership.end_time * 1000) {
-        membership.kind = ChatRoomMembershipKind.member;
-        await runner.manager
-          .createQueryBuilder(ChatRoomMembership, 'cm')
-          .update()
-          .set({
-            kind: membership.kind,
-          })
-          .where('room_id=:room_id AND member_id=:requester_id', { room_id, requester_id })
-          .execute();
-      }
-      await runner.commitTransaction();
       return membership;
     } catch (e) {
       console.error(e);
@@ -118,9 +139,15 @@ export class ChatRoomService {
     }
   }
 
-  async get_room(room_id: number, requester_id: number): Promise<IChatRoom | null> {
+  async get_room(
+    room_id: number,
+    requester_id: number,
+  ): Promise<IChatRoom | null> {
     const membership = await this.get_membership(room_id, requester_id);
-    if (membership != null && membership.kind === ChatRoomMembershipKind.banned) {
+    if (
+      membership != null &&
+      membership.kind === ChatRoomMembershipKind.banned
+    ) {
       return null;
     }
     const query = this.roomRepository
@@ -138,7 +165,10 @@ export class ChatRoomService {
     return found_room;
   }
 
-  async get_members(room_id: number, requester_id: number): Promise<IPartialChatRoomMembership[]> {
+  async get_members(
+    room_id: number,
+    requester_id: number,
+  ): Promise<IPartialChatRoomMembership[]> {
     const member_id_obj = { member_id: requester_id };
     const enemiesQueryBuilderFrom = this.userRelationshipRepository
       .createQueryBuilder('ur')
@@ -152,13 +182,25 @@ export class ChatRoomService {
       .andWhere('ur.from_id=:member_id', member_id_obj);
     const query = this.membershipRepository
       .createQueryBuilder('m')
-      .addCommonTableExpression(enemiesQueryBuilderFrom, 'enemies_from', this.#cteOptions_id)
-      .addCommonTableExpression(enemiesQueryBuilderTo, 'enemies_to', this.#cteOptions_id)
+      .addCommonTableExpression(
+        enemiesQueryBuilderFrom,
+        'enemies_from',
+        this.#cteOptions_id,
+      )
+      .addCommonTableExpression(
+        enemiesQueryBuilderTo,
+        'enemies_to',
+        this.#cteOptions_id,
+      )
       .select('m.member_id', 'member_id')
       .addSelect('m.kind', 'kind')
       .where('m.room_id=:room_id AND kind > 0', { room_id })
-      .andWhere('NOT EXISTS (SELECT 1 FROM "enemies_from" WHERE "enemies_from"."id"="m"."member_id")')
-      .andWhere('NOT EXISTS (SELECT 1 FROM "enemies_to" WHERE "enemies_to"."id"="m"."member_id")');
+      .andWhere(
+        'NOT EXISTS (SELECT 1 FROM "enemies_from" WHERE "enemies_from"."id"="m"."member_id")',
+      )
+      .andWhere(
+        'NOT EXISTS (SELECT 1 FROM "enemies_to" WHERE "enemies_to"."id"="m"."member_id")',
+      );
     const result = await query.getRawMany();
     return result;
   }
@@ -167,23 +209,37 @@ export class ChatRoomService {
     return await this.membershipRepository
       .createQueryBuilder()
       .select('1')
-      .where('room_id=:room_id AND member_id=:requester_id AND kind=2', { room_id, requester_id })
+      .where('room_id=:room_id AND member_id=:requester_id AND kind=2', {
+        room_id,
+        requester_id,
+      })
       .getExists();
   }
 
-  async kick_memberships(room_id: number, requester_id: number, request_target_ids: number[]): Promise<boolean> {
+  async kick_memberships(
+    room_id: number,
+    requester_id: number,
+    request_target_ids: number[],
+  ): Promise<boolean> {
     if (!(await this.is_administrator(room_id, requester_id))) {
       return false;
     }
     const query = this.membershipRepository
       .createQueryBuilder()
       .delete()
-      .where('room_id=:room_id AND kind<>2 AND kind<>-2 AND member_id IN (:...request_target_ids)', { room_id, request_target_ids });
+      .where(
+        'room_id=:room_id AND kind<>2 AND kind<>-2 AND member_id IN (:...request_target_ids)',
+        { room_id, request_target_ids },
+      );
     const _ = await query.execute();
     return true;
   }
 
-  async ban_memberships(room_id: number, requester_id: number, request_target_ids: number[]): Promise<boolean> {
+  async ban_memberships(
+    room_id: number,
+    requester_id: number,
+    request_target_ids: number[],
+  ): Promise<boolean> {
     if (!(await this.is_administrator(room_id, requester_id))) {
       return false;
     }
@@ -193,12 +249,19 @@ export class ChatRoomService {
       .set({
         kind: ChatRoomMembershipKind.banned,
       })
-      .where('room_id=:room_id AND kind<>2 AND kind<>-2 AND member_id IN (:...request_target_ids)', { room_id, request_target_ids });
+      .where(
+        'room_id=:room_id AND kind<>2 AND kind<>-2 AND member_id IN (:...request_target_ids)',
+        { room_id, request_target_ids },
+      );
     const _ = await query.execute();
     return true;
   }
 
-  async invite_memberships(room_id: number, requester_id: number, request_target_ids: number[]): Promise<boolean> {
+  async invite_memberships(
+    room_id: number,
+    requester_id: number,
+    request_target_ids: number[],
+  ): Promise<boolean> {
     if (!(await this.is_administrator(room_id, requester_id))) {
       return false;
     }
@@ -210,10 +273,15 @@ export class ChatRoomService {
         end_time: -1,
       };
     });
-    const insertionResults = await this.membershipRepository.insert(insertValues);
+    const insertionResults =
+      await this.membershipRepository.insert(insertValues);
   }
 
-  async join_membership(room_id: number, requester_id: number, password?: string) {
+  async join_membership(
+    room_id: number,
+    requester_id: number,
+    password?: string,
+  ) {
     try {
       const query = this.roomRepository
         .createQueryBuilder()
@@ -239,12 +307,19 @@ export class ChatRoomService {
       switch (result.kind) {
         case 0:
           await this.membershipRepository.update(
-            { room_id: room_id, member_id: requester_id, kind: ChatRoomMembershipKind.invited },
+            {
+              room_id: room_id,
+              member_id: requester_id,
+              kind: ChatRoomMembershipKind.invited,
+            },
             { kind: ChatRoomMembershipKind.member },
           );
           return true;
         case 1:
-          if (password == null || (await hash(password, result.salt)) !== result.password) {
+          if (
+            password == null ||
+            (await hash(password, result.salt)) !== result.password
+          ) {
             return false;
           }
           const insertionResult1 = await this.membershipRepository.insert({
@@ -282,11 +357,18 @@ export class ChatRoomService {
     const query = this.membershipRepository
       .createQueryBuilder()
       .delete()
-      .where('room_id=:room_id AND member_id=:requester_id AND kind=0', { room_id, requester_id });
+      .where('room_id=:room_id AND member_id=:requester_id AND kind=0', {
+        room_id,
+        requester_id,
+      });
     await query.execute();
   }
 
-  async appoint_administrators(room_id: number, requester_id: number, request_target_ids: number[]): Promise<boolean> {
+  async appoint_administrators(
+    room_id: number,
+    requester_id: number,
+    request_target_ids: number[],
+  ): Promise<boolean> {
     if (!(await this.is_administrator(room_id, requester_id))) {
       return false;
     }
@@ -294,25 +376,43 @@ export class ChatRoomService {
       .createQueryBuilder()
       .update()
       .set({ kind: ChatRoomMembershipKind.administrator })
-      .where('room_id=:room_id AND kind=1 AND member_id IN (:...request_target_ids)', { room_id, request_target_ids });
+      .where(
+        'room_id=:room_id AND kind=1 AND member_id IN (:...request_target_ids)',
+        { room_id, request_target_ids },
+      );
     await query.execute();
     return true;
   }
 
-  async mute_memberships(room_id: number, requester_id: number, request_target_ids: number[], end_time_utc_seconds: number): Promise<boolean> {
+  async mute_memberships(
+    room_id: number,
+    requester_id: number,
+    request_target_ids: number[],
+    end_time_utc_seconds: number,
+  ): Promise<boolean> {
     if (!(await this.is_administrator(room_id, requester_id))) {
       return false;
     }
     const query = this.membershipRepository
       .createQueryBuilder()
       .update()
-      .set({ kind: ChatRoomMembershipKind.muted, end_time: end_time_utc_seconds })
-      .where('room_id=:room_id AND kind=1 AND member_id IN (:...request_target_ids)', { room_id, request_target_ids });
+      .set({
+        kind: ChatRoomMembershipKind.muted,
+        end_time: end_time_utc_seconds,
+      })
+      .where(
+        'room_id=:room_id AND kind=1 AND member_id IN (:...request_target_ids)',
+        { room_id, request_target_ids },
+      );
     await query.execute();
     return true;
   }
 
-  async set_password(room_id: number, requester_id: number, password: string | Buffer): Promise<boolean> {
+  async set_password(
+    room_id: number,
+    requester_id: number,
+    password: string | Buffer,
+  ): Promise<boolean> {
     const runner = this.dataSource.createQueryRunner();
     await runner.connect();
     await runner.startTransaction();
@@ -320,7 +420,10 @@ export class ChatRoomService {
       const room = await runner.manager
         .createQueryBuilder(ChatRoom, 'cr')
         .select()
-        .where('id=:room_id AND owner_id=:requester_id', { room_id, requester_id })
+        .where('id=:room_id AND owner_id=:requester_id', {
+          room_id,
+          requester_id,
+        })
         .getOneOrFail();
       room.salt = await genSalt();
       room.password = await hash(password, room.salt);
@@ -368,7 +471,10 @@ export class ChatRoomService {
     columnNames: ['id'],
   };
 
-  async get_logs(request: IRangeRequestWithUserId, room_id: number): Promise<PartialChatLog[] | null> {
+  async get_logs(
+    request: IRangeRequestWithUserId,
+    room_id: number,
+  ): Promise<PartialChatLog[] | null> {
     const membership = await this.get_membership(room_id, request.user_id);
     if (membership == null || membership.kind < ChatRoomMembershipKind.member) {
       return null;
@@ -385,21 +491,37 @@ export class ChatRoomService {
       .andWhere('ur.from_id=:member_id', { member_id: request.user_id });
     let query = this.logRepository
       .createQueryBuilder('log')
-      .addCommonTableExpression(enemiesQueryBuilderFrom, 'enemies_from', this.#cteOptions_id)
-      .addCommonTableExpression(enemiesQueryBuilderTo, 'enemies_to', this.#cteOptions_id)
+      .addCommonTableExpression(
+        enemiesQueryBuilderFrom,
+        'enemies_from',
+        this.#cteOptions_id,
+      )
+      .addCommonTableExpression(
+        enemiesQueryBuilderTo,
+        'enemies_to',
+        this.#cteOptions_id,
+      )
       .select('log.id', 'id')
       .addSelect('log.member_id', 'member_id')
       .addSelect('log.content', 'content')
       .addSelect('log.date', 'date')
       .where('log.room_id=:room_id', { room_id })
-      .andWhere('NOT EXISTS (SELECT 1 FROM "enemies_from" WHERE "enemies_from"."id"="log"."member_id")')
-      .andWhere('NOT EXISTS (SELECT 1 FROM "enemies_to" WHERE "enemies_to"."id"="log"."member_id")');
+      .andWhere(
+        'NOT EXISTS (SELECT 1 FROM "enemies_from" WHERE "enemies_from"."id"="log"."member_id")',
+      )
+      .andWhere(
+        'NOT EXISTS (SELECT 1 FROM "enemies_to" WHERE "enemies_to"."id"="log"."member_id")',
+      );
     query = addWhereCondition(request, query, 'log.id', true);
     query = addOrderAndLimit(request, query, 'log.id');
     return await query.getRawMany<PartialChatLog>();
   }
 
-  async create(requester_id: number, kind: ChatRoomKind, name: string): Promise<number> {
+  async create(
+    requester_id: number,
+    kind: ChatRoomKind,
+    name: string,
+  ): Promise<number> {
     const query = this.roomRepository
       .createQueryBuilder()
       .insert()
@@ -424,18 +546,33 @@ export class ChatRoomService {
     return room_id;
   }
 
-  async update(room_id: number, requester_id: number, kind: ChatRoomKind, name: string) {
+  async update(
+    room_id: number,
+    requester_id: number,
+    kind: ChatRoomKind,
+    name: string,
+  ) {
     const query = this.roomRepository
       .createQueryBuilder()
       .update()
       .set({ kind, name })
-      .where('id=:room_id AND owner_id=:requester_id', { room_id, requester_id });
+      .where('id=:room_id AND owner_id=:requester_id', {
+        room_id,
+        requester_id,
+      });
     const result = await query.execute();
   }
 
-  async add_log(room_id: number, requester_id: number, content: string): Promise<number> {
+  async add_log(
+    room_id: number,
+    requester_id: number,
+    content: string,
+  ): Promise<number> {
     const membership = await this.get_membership(room_id, requester_id);
-    if (membership === null || membership.kind < ChatRoomMembershipKind.member) {
+    if (
+      membership === null ||
+      membership.kind < ChatRoomMembershipKind.member
+    ) {
       throw new UnauthorizedException();
     }
     const date = Math.ceil(Date.now() / 1000);
