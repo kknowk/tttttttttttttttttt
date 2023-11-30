@@ -2,6 +2,10 @@
 import { WebSocketGateway, SubscribeMessage, WebSocketServer, ConnectedSocket, MessageBody } from '@nestjs/websockets';
 import { Socket } from 'socket.io';
 
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { GameLog } from './game.entity.js';
+
 interface PlayerState {
     paddleY: number;
     ready: boolean;
@@ -45,6 +49,17 @@ export class GameGateway {
     @WebSocketServer()
     server;
 
+    constructor(
+        @InjectRepository(GameLog)
+        private gameLogRepository: Repository<GameLog>,
+    ) { }
+
+
+    // GameLog のデータをコンソールに出力するメソッド
+    async showGameLogs() {
+        const gameLogs = await this.gameLogRepository.find();
+        console.log(gameLogs);
+    }
 
     private gameRooms: Record<string, GameRoom> = {};
 
@@ -75,8 +90,7 @@ export class GameGateway {
         console.log(`Client connected to Game Room: ${gameRoomId}`);
         console.log(`Client ID: ${client.id}`);
 
-        if (!this.gameRooms[gameRoomId])
-        {
+        if (!this.gameRooms[gameRoomId]) {
             this.gameRooms[gameRoomId] = {
                 players: {},
                 ball: { x: 450, y: 300, dx: 3, dy: 1, radius: 10 },
@@ -94,17 +108,16 @@ export class GameGateway {
 
 
         console.log(`gameInterrupted??: ${gameRoom.connect}`);
-        if (gameRoom.connect == false)
-        {
+        if (gameRoom.connect == false) {
             console.log('final gameInterrupted');
 
             setTimeout(() => {
                 this.server.to(gameRoomId).emit('gameInterrupted');
             }, 3000);
 
-            
+
             delete this.gameRooms[gameRoomId];
-            return ;
+            return;
         }
         gameRoom.players[client.id] = { paddleY: 300, ready: false, position, name, score: 5 };
     }
@@ -154,7 +167,7 @@ export class GameGateway {
         }
     }
 
-    private updateGameState(gameRoomId: string) {
+    private async updateGameState(gameRoomId: string) {
         const gameRoom = this.gameRooms[gameRoomId];
         if (!gameRoom || !gameRoom.gameStarted)
             return;
@@ -245,6 +258,22 @@ export class GameGateway {
                 });
 
                 if (winnerId && loserId) {
+
+                    const gameLog = new GameLog();
+                    gameLog.winner_id = (winnerId);
+                    gameLog.loser_id = (loserId);
+                    gameLog.date = Math.floor(Date.now() / 1000); // 現在のUTC秒
+
+                    // データベースに保存
+                    await this.gameLogRepository.save(gameLog);
+
+                    console.log("finish!!!!!!!!!!!!!!!!!!!!!!");
+
+                    // テスト
+                    this.showGameLogs(); // コンストラクタ内で直接呼び出し
+
+                    console.log("hahahahha!!!!!!!!!!!!!!!!!!!!!!");
+
                     gameRoom.winnerId = winnerId;
                     gameRoom.loserId = loserId;
                     Object.keys(gameRoom.players).forEach(clientId => {

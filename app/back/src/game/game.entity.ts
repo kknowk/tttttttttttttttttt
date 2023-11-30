@@ -8,10 +8,10 @@ export class GameLog {
 	id: number;
 
 	@Column()
-	winner_id: number;
+	winner_id: string;
 
 	@Column()
-	loser_id: number;
+	loser_id: string;
 
 	@Column({
 		type: 'int8',
