@@ -1,6 +1,6 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { User, UserRelationship } from '../user/user.entity.js';
+import { UserRelationship } from '../user/user.entity.js';
 import { DataSource, Repository } from 'typeorm';
 import {
   ChatRoomMembership,
@@ -20,13 +20,13 @@ import {
 } from '../utility/range-request.js';
 import { genSalt, hash } from 'bcrypt';
 import { Cron } from '@nestjs/schedule';
+import { UserService } from '../user/user.service.js';
 
 @Injectable()
 export class ChatRoomService {
   constructor(
     private dataSource: DataSource,
-    @InjectRepository(User)
-    private userRepository: Repository<User>,
+    private userService: UserService,
     @InjectRepository(UserRelationship)
     private userRelationshipRepository: Repository<UserRelationship>,
     @InjectRepository(ChatRoom)
@@ -165,6 +165,18 @@ export class ChatRoomService {
     return found_room;
   }
 
+  async get_room_name(room_id: number): Promise<string | null> {
+    const query = this.roomRepository
+      .createQueryBuilder()
+      .select('name', 'name')
+      .where('id=:room_id', { room_id });
+    const result = await query.getRawOne();
+    if (result == null) {
+      return null;
+    }
+    return result.name;
+  }
+
   async get_members(
     room_id: number,
     requester_id: number,
@@ -232,6 +244,14 @@ export class ChatRoomService {
         { room_id, request_target_ids },
       );
     const _ = await query.execute();
+    if (request_target_ids.length > 0) {
+      await this.userService.notify(
+        request_target_ids,
+        `Kicked out from <a href="/chat/${room_id}">${await this.get_room_name(
+          room_id,
+        )}</a>`,
+      );
+    }
     return true;
   }
 
@@ -273,8 +293,20 @@ export class ChatRoomService {
         end_time: -1,
       };
     });
-    const insertionResults =
-      await this.membershipRepository.insert(insertValues);
+    try {
+      const insertionResults =
+        await this.membershipRepository.insert(insertValues);
+      if (request_target_ids.length > 0) {
+        await this.userService.notify(
+          request_target_ids,
+          `You are invited to <a href="/chat/${room_id}">${await this.get_room_name(
+            room_id,
+          )}</a>`,
+        );
+      }
+    } catch (error) {
+      console.error(error);
+    }
   }
 
   async join_membership(
@@ -381,6 +413,14 @@ export class ChatRoomService {
         { room_id, request_target_ids },
       );
     await query.execute();
+    if (request_target_ids.length > 0) {
+      await this.userService.notify(
+        request_target_ids,
+        `You are appointed to be an administrator of <a href="/chat/${room_id}">${await this.get_room_name(
+          room_id,
+        )}</a>`,
+      );
+    }
     return true;
   }
 
@@ -597,6 +637,21 @@ export class ChatRoomService {
       })
       .where('id=:room_id AND start_inclusive_log_id IS NULL', { room_id });
     await updateQuery.execute();
+    const members = (await this.get_members(room_id, requester_id)).map(
+      (value) => value.member_id,
+    );
+    const foundIndex = members.findIndex((value) => value === requester_id);
+    if (foundIndex >= 0) {
+      members.splice(foundIndex, 1);
+    }
+    if (members.length > 0) {
+      await this.userService.notify(
+        members,
+        `New Comment@<a href="/chat/${room_id}">${await this.get_room_name(
+          room_id,
+        )}</a>`,
+      );
+    }
     return log_id;
   }
 }

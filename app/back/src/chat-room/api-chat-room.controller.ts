@@ -10,6 +10,8 @@ import {
   Param,
   ParseIntPipe,
   PayloadTooLargeException,
+  ParseBoolPipe,
+  Query,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import type { Request } from 'express';
@@ -34,7 +36,13 @@ export class ApiChatRoomController {
   }
 
   @Post('create')
-  async create(@Req() req: Request, @Body(JsonPipe) body: { name: string; kind: 0 | 2 } | { name: string; kind: 1; password: string }) {
+  async create(
+    @Req() req: Request,
+    @Body(JsonPipe)
+    body:
+      | { name: string; kind: 0 | 2 }
+      | { name: string; kind: 1; password: string },
+  ) {
     if (body.name == null || body.name.length < 1 || body.name.length > 32) {
       throw new BadRequestException({ reason: 'invalid name', body });
     }
@@ -45,8 +53,19 @@ export class ApiChatRoomController {
       throw new BadRequestException(`invalid password: ${body.password}`);
     }
     const user = req.user as IUser;
-    const room_id = await this.chatRoomService.create(user.id, body.kind, body.name);
-    if (body.kind === 1 && !(await this.chatRoomService.set_password(room_id, user.id, body.password))) {
+    const room_id = await this.chatRoomService.create(
+      user.id,
+      body.kind,
+      body.name,
+    );
+    if (
+      body.kind === 1 &&
+      !(await this.chatRoomService.set_password(
+        room_id,
+        user.id,
+        body.password,
+      ))
+    ) {
       throw new InternalServerErrorException('failed to set password');
     }
     return room_id;
@@ -56,7 +75,10 @@ export class ApiChatRoomController {
   async update(
     @Req() req: Request,
     @Param('room_id', ParseIntPipe) room_id: number,
-    @Body(JsonPipe) body: { name: string; kind: 0 | 2 } | { name: string; kind: 1; password: string },
+    @Body(JsonPipe)
+    body:
+      | { name: string; kind: 0 | 2 }
+      | { name: string; kind: 1; password: string },
   ) {
     if (body.name == null || body.name.length < 1 || body.name.length > 32) {
       throw new BadRequestException({ reason: 'invalid name', body });
@@ -69,14 +91,26 @@ export class ApiChatRoomController {
     }
     const user = req.user as IUser;
     await this.chatRoomService.update(room_id, user.id, body.kind, body.name);
-    if (body.kind === 1 && !(await this.chatRoomService.set_password(room_id, user.id, body.password))) {
+    if (
+      body.kind === 1 &&
+      !(await this.chatRoomService.set_password(
+        room_id,
+        user.id,
+        body.password,
+      ))
+    ) {
       throw new InternalServerErrorException('failed to set password');
     }
     return room_id;
   }
 
   @Post('send-message/:room_id')
-  async send_message(@Req() req: Request, @Param('room_id', ParseIntPipe) room_id: number, @Body() body: string) {
+  async send_message(
+    @Req() req: Request,
+    @Param('room_id', ParseIntPipe) room_id: number,
+    @Query('is_html', ParseBoolPipe) is_html: boolean,
+    @Body() body: string,
+  ) {
     if (body == null || body.length === 0) {
       throw new BadRequestException('body is empty.');
     }
@@ -86,7 +120,10 @@ export class ApiChatRoomController {
     const user = req.user as IUser;
     await this.chatRoomService.add_log(room_id, user.id, body);
     const params = new URL(req.url, `https://${req.headers.host}`).searchParams;
-    const rangeRequest = createIRangeRequestWithUserFromURLSearchParams(user.id, params);
+    const rangeRequest = createIRangeRequestWithUserFromURLSearchParams(
+      user.id,
+      params,
+    );
     if (rangeRequest === null) {
       throw new BadRequestException('range request is invalid.');
     }
@@ -94,10 +131,16 @@ export class ApiChatRoomController {
   }
 
   @Get('logs/:room_id')
-  async get_logs(@Req() req: Request, @Param('room_id', ParseIntPipe) room_id: number) {
+  async get_logs(
+    @Req() req: Request,
+    @Param('room_id', ParseIntPipe) room_id: number,
+  ) {
     const user = req.user as IUser;
     const params = new URL(req.url, `https://${req.headers.host}`).searchParams;
-    const rangeRequest = createIRangeRequestWithUserFromURLSearchParams(user.id, params);
+    const rangeRequest = createIRangeRequestWithUserFromURLSearchParams(
+      user.id,
+      params,
+    );
     if (rangeRequest === null) {
       throw new BadRequestException('range request is invalid.');
     }
@@ -105,44 +148,94 @@ export class ApiChatRoomController {
   }
 
   @Post('approve-invitation/:room_id')
-  async approve_invitation(@Req() req: Request, @Param('room_id', ParseIntPipe) room_id: number, @Body(JsonPipe) body?: { password: string }) {
+  async approve_invitation(
+    @Req() req: Request,
+    @Param('room_id', ParseIntPipe) room_id: number,
+    @Body(JsonPipe) body?: { password: string },
+  ) {
     const user = req.user as IUser;
-    return await this.chatRoomService.join_membership(room_id, user.id, body?.password ?? undefined);
+    return await this.chatRoomService.join_membership(
+      room_id,
+      user.id,
+      body?.password ?? undefined,
+    );
   }
 
   @Post('reject-invitation/:room_id')
-  async reject_invitation(@Req() req: Request, @Param('room_id', ParseIntPipe) room_id: number) {
+  async reject_invitation(
+    @Req() req: Request,
+    @Param('room_id', ParseIntPipe) room_id: number,
+  ) {
     const user = req.user as IUser;
     await this.chatRoomService.reject_invitation(room_id, user.id);
   }
 
   @Post('invite/:room_id')
-  async invite(@Req() req: Request, @Param('room_id', ParseIntPipe) room_id: number, @Body(JsonPipe) body: number[]) {
+  async invite(
+    @Req() req: Request,
+    @Param('room_id', ParseIntPipe) room_id: number,
+    @Body(JsonPipe) body: number[],
+  ) {
     const user = req.user as IUser;
-    return await this.chatRoomService.invite_memberships(room_id, user.id, body);
+    return await this.chatRoomService.invite_memberships(
+      room_id,
+      user.id,
+      body,
+    );
   }
 
   @Post('appoint/:room_id')
-  async appoint(@Req() req: Request, @Param('room_id', ParseIntPipe) room_id: number, @Body(JsonPipe) body: number[]) {
+  async appoint(
+    @Req() req: Request,
+    @Param('room_id', ParseIntPipe) room_id: number,
+    @Body(JsonPipe) body: number[],
+  ) {
     const user = req.user as IUser;
-    return await this.chatRoomService.appoint_administrators(room_id, user.id, body);
+    return await this.chatRoomService.appoint_administrators(
+      room_id,
+      user.id,
+      body,
+    );
   }
 
   @Post('ban/:room_id')
-  async ban(@Req() req: Request, @Param('room_id', ParseIntPipe) room_id: number, @Body(JsonPipe) body: number[]) {
+  async ban(
+    @Req() req: Request,
+    @Param('room_id', ParseIntPipe) room_id: number,
+    @Body(JsonPipe) body: number[],
+  ) {
     const user = req.user as IUser;
     return await this.chatRoomService.ban_memberships(room_id, user.id, body);
   }
 
   @Post('kick/:room_id')
-  async kick(@Req() req: Request, @Param('room_id', ParseIntPipe) room_id: number, @Body(JsonPipe) body: number[]) {
+  async kick(
+    @Req() req: Request,
+    @Param('room_id', ParseIntPipe) room_id: number,
+    @Body(JsonPipe) body: number[],
+  ) {
     const user = req.user as IUser;
     return await this.chatRoomService.kick_memberships(room_id, user.id, body);
   }
 
   @Post('mute/:room_id')
-  async mute(@Req() req: Request, @Param('room_id', ParseIntPipe) room_id: number, @Body(JsonPipe) body: { ids: number[]; end_time: number }) {
+  async mute(
+    @Req() req: Request,
+    @Param('room_id', ParseIntPipe) room_id: number,
+    @Body(JsonPipe) body: { ids: number[]; end_time: number },
+  ) {
     const user = req.user as IUser;
-    return await this.chatRoomService.mute_memberships(room_id, user.id, body.ids, body.end_time);
+    return await this.chatRoomService.mute_memberships(
+      room_id,
+      user.id,
+      body.ids,
+      body.end_time,
+    );
   }
+
+  @Post('invite-game/:room_id')
+  async invite_game(
+    @Req() req: Request,
+    @Param('room_id', ParseIntPipe) room_id: number,
+  ) {}
 }

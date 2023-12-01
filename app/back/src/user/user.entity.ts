@@ -49,6 +49,12 @@ export class User {
   })
   two_factor_authentication_required: boolean;
 
+  @Column({
+    type: 'int8',
+    default: -1,
+  })
+  notice_read_id: number;
+
   to_interface() {
     return {
       id: this.id,
@@ -58,6 +64,7 @@ export class User {
       two_factor_authentication_required:
         this.two_factor_authentication_required,
       is_two_factor_authenticated: false,
+      notice_read_id: this.notice_read_id,
     };
   }
 }
@@ -221,6 +228,7 @@ export type IUserWithRelationship = {
     | 'activity_kind'
     | 'two_factor_authentication_required'
     | 'is_two_factor_authenticated'
+    | 'notice_read_id'
   >]: IUser[K];
 };
 
@@ -247,6 +255,13 @@ export class Notice {
     default: '',
   })
   content: string;
+
+  @Column({
+    type: 'int',
+    default: 0,
+    comment: 'utc seconds'
+  })
+  date: number;
 }
 
 export type INotice = {

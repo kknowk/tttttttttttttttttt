@@ -1,13 +1,13 @@
 <script lang="ts">
-  import type { PageData } from './$types';
-  import SetRelationshipButtons from '$lib/components/set-relationship-buttons.svelte';
-  import EnterKeyTextArea from '$lib/components/enter-key-textarea.svelte';
-  import Message from '$lib/components/message.svelte';
-  import InfiniteScrolling from '$lib/components/infinite-scrolling.svelte';
-  import { goto } from '$app/navigation';
-  import type { IDirectMessageLog } from '$lib/back/direct-message-room/direct-message-room.entity';
-  import { onDestroy, onMount } from 'svelte';
-  import { browser } from '$app/environment';
+  import type { PageData } from "./$types";
+  import SetRelationshipButtons from "$lib/components/set-relationship-buttons.svelte";
+  import EnterKeyTextArea from "$lib/components/enter-key-textarea.svelte";
+  import Message from "$lib/components/message.svelte";
+  import InfiniteScrolling from "$lib/components/infinite-scrolling.svelte";
+  import { goto } from "$app/navigation";
+  import type { IDirectMessageLog } from "$lib/back/direct-message-room/direct-message-room.entity";
+  import { onDestroy, onMount } from "svelte";
+  import { browser } from "$app/environment";
 
   export let data: PageData;
   let logs = data.logs;
@@ -17,7 +17,9 @@
 
   async function polling() {
     now = Math.ceil(Date.now() / 1000);
-    const url = `/api/direct-message-room/logs/${data.counterpart.id}?order=descending&start_exclusive=${get_start_exclusive_id()}`;
+    const url = `/api/direct-message-room/logs/${
+      data.counterpart.id
+    }?order=descending&start_exclusive=${get_start_exclusive_id()}`;
     const response = await fetch(url);
     await renewLogs(response);
   }
@@ -36,7 +38,7 @@
   }
 
   function visibilityChangeHandler(this: Document, _: Event) {
-    if (this.visibilityState === 'hidden') {
+    if (this.visibilityState === "hidden") {
       if (intervalId != null) {
         clearInterval(intervalId);
         intervalId = null;
@@ -51,7 +53,7 @@
 
   function get_start_exclusive_id() {
     if (logs == null || logs.length === 0) {
-      return '-1';
+      return "-1";
     } else {
       return logs[0].id.toString();
     }
@@ -59,7 +61,7 @@
 
   onMount(() => {
     intervalId = setInterval(polling, 60000) as unknown as number;
-    document.addEventListener('visibilitychange', visibilityChangeHandler);
+    document.addEventListener("visibilitychange", visibilityChangeHandler);
   });
 
   onDestroy(() => {
@@ -67,22 +69,22 @@
       if (intervalId) {
         clearInterval(intervalId);
       }
-      document.removeEventListener('visibilitychange', visibilityChangeHandler);
+      document.removeEventListener("visibilitychange", visibilityChangeHandler);
     }
   });
 
   async function relationshipCallback(element: HTMLButtonElement, response: Response) {
-    if (response.ok && element.dataset.kind === 'ban') {
-      return await goto('/home/direct-message/list', { invalidateAll: true });
+    if (response.ok && element.dataset.kind === "ban") {
+      return await goto("/home/direct-message/list", { invalidateAll: true });
     }
   }
 
   const fetchOptions: RequestInit = {
-    method: 'POST',
+    method: "POST",
     headers: {
-      'Content-Type': 'text/plain;charset=UTF-8',
+      "Content-Type": "text/plain;charset=UTF-8",
     },
-    credentials: 'same-origin',
+    credentials: "same-origin",
   };
 
   async function sendMessage(areaElement: HTMLTextAreaElement, buttonElement: HTMLButtonElement) {
@@ -92,10 +94,10 @@
     buttonElement.disabled = true;
     const option = structuredClone(fetchOptions);
     option.body = areaElement.value;
-    areaElement.value = '';
+    areaElement.value = "";
     let url = `/api/direct-message-room/send-message/${data.counterpart.id}?order=descending&start_exclusive=`;
     if (logs == null) {
-      url += '-1';
+      url += "-1";
     } else {
       const last_message_id = logs.length === 0 ? -1 : logs[0].id;
       url += last_message_id.toString();
@@ -106,7 +108,9 @@
   }
 
   async function getHistory(): Promise<void> {
-    const url = `/api/direct-message-room/logs/${data.counterpart.id}?order=descending&limit=50&end_exclusive=${logs![logs!.length - 1].id}`;
+    const url = `/api/direct-message-room/logs/${
+      data.counterpart.id
+    }?order=descending&limit=50&end_exclusive=${logs![logs!.length - 1].id}`;
     const response = await fetch(url);
     if (!response.ok) {
       return;
@@ -123,7 +127,11 @@
     now = Math.ceil(Date.now() / 1000);
   }
 
-  $: infiniteDisabled = data.room == null || logs == null || logs.length === 0 || logs[logs.length - 1].id === data.room.start_inclusive_log_id;
+  $: infiniteDisabled =
+    data.room == null ||
+    logs == null ||
+    logs.length === 0 ||
+    logs[logs.length - 1].id === data.room.start_inclusive_log_id;
 </script>
 
 <svelte:head>
@@ -136,7 +144,11 @@
 <nav>
   <menu>
     <button>Invite Game</button>
-    <SetRelationshipButtons user_id={data.counterpart.id} user_relationship={1} callback={relationshipCallback} />
+    <SetRelationshipButtons
+      user_id={data.counterpart.id}
+      user_relationship={1}
+      callback={relationshipCallback}
+    />
   </menu>
 </nav>
 
@@ -147,10 +159,13 @@
       <Message
         message_id={log.id}
         user_id={log.member_id}
-        user_name={log.member_id === data.user.id ? data.user.displayName : data.counterpart.displayName}
+        user_name={log.member_id === data.user.id
+          ? data.user.displayName
+          : data.counterpart.displayName}
         utcSeconds={log.date}
         content={log.content}
         {now}
+        is_html={log.is_html}
       />
     {/each}
     <InfiniteScrolling disabled={infiniteDisabled} callback={getHistory} />

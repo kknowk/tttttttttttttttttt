@@ -12,6 +12,8 @@ interface PlayerState {
     position: 'left' | 'right'; // プレイヤーの位置を左または右に変更
     name: string; // ユーザー名を追加
     score: number;
+
+    userId: number; // ユーザーIDを追加
     // connect: boolean;
 }
 
@@ -29,8 +31,8 @@ interface GameRoom {
     gameInterval: NodeJS.Timeout | null;
     gameStarted: boolean;
     isLunatic: boolean;
-    winnerId?: string;
-    loserId?: string;
+    winnerId?: number;
+    loserId?: number;
     gameOver: boolean;
 
     connect: boolean;
@@ -87,8 +89,16 @@ export class GameGateway {
 
     handleConnection(client: Socket) {
         const gameRoomId = client.handshake.query.gameRoomId as string;
+        const userIdString = client.handshake.query.userId as string; // ユーザーIDを取得
+        const userId = Number(userIdString); // 文字列を数値に変換
+
+        if (isNaN(userId)) {
+            // userIdが数値に変換できない場合の処理
+            console.log(`Invalid userId: ${userIdString}`);
+            return;
+        }
         console.log(`Client connected to Game Room: ${gameRoomId}`);
-        console.log(`Client ID: ${client.id}`);
+        console.log(`Client ID: ${client.id}, User ID: ${userId}`);
 
         if (!this.gameRooms[gameRoomId]) {
             this.gameRooms[gameRoomId] = {
@@ -119,12 +129,13 @@ export class GameGateway {
             delete this.gameRooms[gameRoomId];
             return;
         }
-        gameRoom.players[client.id] = { paddleY: 300, ready: false, position, name, score: 5 };
+        gameRoom.players[client.id] = { paddleY: 300, ready: false, position, name, score: 5 , userId};
     }
 
     @SubscribeMessage('playerReady')
     handlePlayerReady(@ConnectedSocket() client: Socket) {
         const gameRoomId = client.handshake.query.gameRoomId as string;
+
         const gameRoom = this.gameRooms[gameRoomId];
         gameRoom.players[client.id].ready = true;
         this.checkStartGame(gameRoomId);
@@ -133,6 +144,7 @@ export class GameGateway {
     @SubscribeMessage('Lunatic')
     handleLunaticReady(@ConnectedSocket() client: Socket) {
         const gameRoomId = client.handshake.query.gameRoomId as string;
+
         const gameRoom = this.gameRooms[gameRoomId];
 
         if (!gameRoom) return;
@@ -146,6 +158,7 @@ export class GameGateway {
     @SubscribeMessage('movePaddle')
     handleMovePaddle(@MessageBody() data: { paddleY: number }, @ConnectedSocket() client: Socket) {
         const gameRoomId = client.handshake.query.gameRoomId as string;
+        
         const gameRoom = this.gameRooms[gameRoomId];
 
         if (!gameRoom || !gameRoom.gameStarted)
@@ -160,6 +173,8 @@ export class GameGateway {
         const gameRoom = this.gameRooms[gameRoomId];
         if (Object.values(gameRoom.players).every(player => player.ready)) {
             gameRoom.gameStarted = true;
+
+                
             this.server.emit('startGame', { gameRoomId });
             gameRoom.gameInterval = setInterval(() => {
                 this.updateGameState(gameRoomId);
@@ -246,14 +261,14 @@ export class GameGateway {
 
             if (gameRoom.gameOver) {
                 // 勝者と敗者を決定
-                let winnerId: string | null = null;
-                let loserId: string | null = null;
+                let winnerId: number | null = null;
+                let loserId: number | null = null;
 
                 Object.entries(gameRoom.players).forEach(([clientId, player]) => {
                     if (player.score > 0) {
-                        winnerId = clientId;
+                        winnerId = player.userId;
                     } else {
-                        loserId = clientId;
+                        loserId = player.userId;
                     }
                 });
 
@@ -265,6 +280,7 @@ export class GameGateway {
                     gameLog.date = Math.floor(Date.now() / 1000); // 現在のUTC秒
 
                     // データベースに保存
+                    // await this.gameLogRepository.save(gameLog);
                     await this.gameLogRepository.save(gameLog);
 
                     console.log("finish!!!!!!!!!!!!!!!!!!!!!!");

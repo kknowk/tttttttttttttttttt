@@ -5,12 +5,11 @@
 
 // api-game-matching.controller.ts
 
-import { Body, Controller, Post , Req, UseGuards } from '@nestjs/common';
+import { Controller, Post , Req, UseGuards } from '@nestjs/common';
 import { GameMatchingService } from './game-matching.service.js';
 import { AuthGuard } from '@nestjs/passport';
 import type { Request } from 'express';
-import { IUser } from 'src/user/user.entity.js';
-import { JsonPipe } from 'src/custom-pipe/json-pipe.js';
+import { IUser } from '../user/user.entity.js';
 
 @UseGuards(AuthGuard('jwt'))
 @Controller('api/matchmaking')

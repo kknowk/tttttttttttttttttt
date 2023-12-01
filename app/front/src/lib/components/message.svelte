@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { showTimeDiff } from '$lib/time-helper';
-  import { onMount } from 'svelte';
+  import { showTimeDiff } from "$lib/time-helper";
+  import { onMount } from "svelte";
 
   export let message_id: number;
   export let user_name: string;
@@ -10,6 +10,7 @@
 
   export let now: number = Math.floor(Date.now() / 1000);
   export let language: string | null = null;
+  export let is_html: boolean;
 
   $: date = (function () {
     const date = new Date(utcSeconds * 1000);
@@ -34,5 +35,9 @@
       Time: {showTimeDiff(utcSeconds, now)}
     </time>
   </div>
-  <pre>{content}</pre>
+  {#if is_html}
+    {@html content}
+  {:else}
+    <pre>{content}</pre>
+  {/if}
 </article>

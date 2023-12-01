@@ -12,6 +12,7 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { RequestWithServices, Services } from './svelte.services.js';
 import type { Response } from 'express';
+import { GameGateway } from './game/game.gateway.js';
 
 @Injectable()
 export class SvelteMiddleware implements NestMiddleware {
@@ -26,6 +27,7 @@ export class SvelteMiddleware implements NestMiddleware {
     gameMatchingService: GameMatchingService,
     jwtService: JwtService,
     configService: ConfigService,
+    GameGateway: GameGateway
   ) {
     this.services = {
       authService,
@@ -36,6 +38,7 @@ export class SvelteMiddleware implements NestMiddleware {
       gameMatchingService,
       jwtService,
       configService,
+      GameGateway
     };
   }
 

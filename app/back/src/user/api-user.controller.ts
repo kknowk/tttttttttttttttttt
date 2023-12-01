@@ -131,9 +131,31 @@ export class ApiUserController {
       user.id,
       url.searchParams,
       50,
-      true,
+      false,
     );
+    rangeRequest.start_exclusive =
+      rangeRequest.start_exclusive > user.notice_read_id
+        ? rangeRequest.start_exclusive
+        : user.notice_read_id;
     const answer = await this.userService.get_notice(rangeRequest);
+    return answer;
+  }
+
+  @Get('get-notice-count')
+  async get_notice_count(@Req() req: Request) {
+    const user = req.user as IUser;
+    const url = new URL(req.url, `https://${req.headers.host}`);
+    const rangeRequest = createIRangeRequestWithUserFromURLSearchParams(
+      user.id,
+      url.searchParams,
+      50,
+      false,
+    );
+    rangeRequest.start_exclusive =
+      rangeRequest.start_exclusive > user.notice_read_id
+        ? rangeRequest.start_exclusive
+        : user.notice_read_id;
+    const answer = await this.userService.get_notice_count(rangeRequest);
     return answer;
   }
 }

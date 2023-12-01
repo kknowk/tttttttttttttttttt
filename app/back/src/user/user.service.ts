@@ -25,6 +25,7 @@ import {
   addWhereCondition,
   addOrderAndLimit,
 } from '../utility/range-request.js';
+import { InsertQueryBuilder } from 'typeorm/browser';
 
 @Injectable()
 export class UserService {
@@ -147,6 +148,7 @@ export class UserService {
       .addSelect('u.displayName', 'displayName')
       .addSelect('u.last_activity_timestamp', 'last_activity_timestamp')
       .addSelect('u.activity_kind', 'activity_kind')
+      .addSelect('u.notice_read_id', 'notice_read_id')
       .distinctOn(['u.id'])
       .innerJoin('friends', 'f', 'u.id=f.id');
     const users = await userQuery.getRawMany();
@@ -319,6 +321,18 @@ export class UserService {
     return await this.userRepository.exist({ where: { id: user_id } });
   }
 
+  public async get_display_name(user_id: number): Promise<string | null> {
+    const query = this.userRepository
+      .createQueryBuilder()
+      .select('displayName', 'displayName')
+      .where('id=:user_id', { user_id });
+    const result = await query.getRawOne();
+    if (result == null) {
+      return null;
+    }
+    return result.displayName;
+  }
+
   public async get_users(
     requester_id: number,
     user_ids: number[],
@@ -344,18 +358,35 @@ export class UserService {
     return result;
   }
 
-  public async notify(user_id: number, content: string) {
-    const query = this.noticeRepository
-      .createQueryBuilder()
-      .insert()
-      .values({
+  public async notify(user_id: number | number[], content: string) {
+    let query: InsertQueryBuilder<any>;
+    const now = Math.floor(Date.now() / 1000);
+    if (typeof user_id === 'number') {
+      query = this.noticeRepository.createQueryBuilder().insert().values({
         user_id,
         content,
-      })
-      .returning('id');
-    const result = await query.execute();
-    const id = result.generatedMaps[0].id;
-    return id as number;
+        date: now,
+      });
+    } else if (user_id instanceof Array) {
+      if (user_id.length === 0) {
+        return;
+      }
+      query = this.noticeRepository
+        .createQueryBuilder()
+        .insert()
+        .values(
+          user_id.map((value) => {
+            return {
+              user_id: value,
+              content,
+              date: now,
+            };
+          }),
+        );
+    } else {
+      return;
+    }
+    await query.execute();
   }
 
   public async get_notice(rangeRequest: IRangeRequestWithUserId) {
@@ -367,6 +398,31 @@ export class UserService {
     query = addWhereCondition(rangeRequest, query, 'id', true);
     query = addOrderAndLimit(rangeRequest, query, 'id');
     const result = await query.getRawMany<{ id: number; content: string }>();
+    let maxId: number = -1;
+    for (const { id } of result) {
+      if (id > maxId) {
+        maxId = id;
+      }
+    }
+    const updateQuery = this.userRepository
+      .createQueryBuilder()
+      .update()
+      .set({
+        notice_read_id: maxId,
+      })
+      .where('id=:id', { id: rangeRequest.user_id });
+    await updateQuery.execute();
+    return result;
+  }
+
+  public async get_notice_count(rangeRequest: IRangeRequestWithUserId) {
+    let query = this.noticeRepository
+      .createQueryBuilder()
+      .select('id')
+      .where('user_id=:user_id', { user_id: rangeRequest.user_id });
+    query = addWhereCondition(rangeRequest, query, 'id', true);
+    query = addOrderAndLimit(rangeRequest, query, 'id');
+    const result = await query.getCount();
     return result;
   }
 }

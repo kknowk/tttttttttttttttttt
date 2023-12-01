@@ -8,6 +8,7 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { IUser } from './user/user.entity.js';
 import type { Request } from 'express';
+import { GameGateway } from './game/game.gateway.js';
 
 export interface Services {
   authService: AuthService;
@@ -18,6 +19,7 @@ export interface Services {
   gameMatchingService: GameMatchingService;
   jwtService: JwtService;
   configService: ConfigService;
+  GameGateway: GameGateway;
 }
 
 export interface RequestWithServices extends Request {

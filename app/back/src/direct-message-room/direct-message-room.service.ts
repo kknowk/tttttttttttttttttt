@@ -15,6 +15,7 @@ import {
   addOrderAndLimit,
   addWhereCondition,
 } from '../utility/range-request.js';
+import { UserService } from '../user/user.service.js';
 
 @Injectable()
 export class DirectMessageRoomService {
@@ -28,6 +29,7 @@ export class DirectMessageRoomService {
     private membershipRepository: Repository<DirectMessageRoomMembership>,
     @InjectRepository(DirectMessageLog)
     private logRepository: Repository<DirectMessageLog>,
+    private userService: UserService,
   ) {}
 
   async get_logs(
@@ -190,6 +192,16 @@ export class DirectMessageRoomService {
         )
         .execute();
       await runner.commitTransaction();
+      const counterpart_id = await this.get_counterpart_id(
+        requester_id,
+        room_id,
+      );
+      await this.userService.notify(
+        counterpart_id,
+        `New Message@<a href="/home/direct-message/${requester_id}">${await this.userService.get_display_name(
+          requester_id,
+        )}</a>`,
+      );
       return start_inclusive_log_id;
     } catch (e) {
       console.error(e);

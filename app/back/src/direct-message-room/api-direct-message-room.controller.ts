@@ -11,6 +11,8 @@ import {
   NotFoundException,
   ParseIntPipe,
   PayloadTooLargeException,
+  ParseBoolPipe,
+  Query,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import type { Request } from 'express';
@@ -28,7 +30,12 @@ export class ApiDirectMessageRoomController {
   ) {}
 
   @Post('send-message/:counterpart_id')
-  async send_message(@Req() req: Request, @Param('counterpart_id', ParseIntPipe) counterpart_id: number, @Body() body: string) {
+  async send_message(
+    @Req() req: Request,
+    @Param('counterpart_id', ParseIntPipe) counterpart_id: number,
+    @Query('is_html', ParseBoolPipe) is_html: boolean,
+    @Body() body: string,
+  ) {
     if (body == null || body.length === 0) {
       throw new BadRequestException('body is empty.');
     }
@@ -39,17 +46,30 @@ export class ApiDirectMessageRoomController {
       throw new NotFoundException({ counterpart_id });
     }
     const user = req.user as IUser;
-    const relationship = await this.userService.get_lowest_relationship(user.id, counterpart_id);
+    const relationship = await this.userService.get_lowest_relationship(
+      user.id,
+      counterpart_id,
+    );
     if (relationship === UserRelationshipKind.banned) {
       throw new UnauthorizedException();
     }
     const params = new URL(req.url, `https://${req.headers.host}`).searchParams;
-    const rangeRequest = createIRangeRequestWithUserFromURLSearchParams(user.id, params);
+    const rangeRequest = createIRangeRequestWithUserFromURLSearchParams(
+      user.id,
+      params,
+    );
     if (rangeRequest === null) {
       throw new BadRequestException();
     }
-    const room = await this.directMessageRoomService.ensure_room_existence(user.id, counterpart_id);
-    const result = await this.directMessageRoomService.add_log(user.id, room.id, body);
+    const room = await this.directMessageRoomService.ensure_room_existence(
+      user.id,
+      counterpart_id,
+    );
+    const result = await this.directMessageRoomService.add_log(
+      user.id,
+      room.id,
+      body,
+    );
     if (result == null) {
       throw new BadRequestException('add_log failure');
     }
@@ -70,21 +90,39 @@ export class ApiDirectMessageRoomController {
   }
 
   @Get('logs/:counterpart_id')
-  async get_logs(@Req() req: Request, @Param('counterpart_id', ParseIntPipe) counterpart_id: number) {
+  async get_logs(
+    @Req() req: Request,
+    @Param('counterpart_id', ParseIntPipe) counterpart_id: number,
+  ) {
     const user = req.user as IUser;
-    const relationship = await this.userService.get_lowest_relationship(user.id, counterpart_id);
+    const relationship = await this.userService.get_lowest_relationship(
+      user.id,
+      counterpart_id,
+    );
     if (relationship === UserRelationshipKind.banned) {
       throw new UnauthorizedException();
     }
     const params = new URL(req.url, `https://${req.headers.host}`).searchParams;
-    const rangeRequest = createIRangeRequestWithUserFromURLSearchParams(user.id, params);
+    const rangeRequest = createIRangeRequestWithUserFromURLSearchParams(
+      user.id,
+      params,
+    );
     if (rangeRequest === null) {
       throw new BadRequestException();
     }
-    const room_id = await this.directMessageRoomService.get_room_id(user.id, counterpart_id);
+    const room_id = await this.directMessageRoomService.get_room_id(
+      user.id,
+      counterpart_id,
+    );
     if (room_id == null) {
       throw new NotFoundException();
     }
     return await this.directMessageRoomService.get_logs(room_id, rangeRequest);
   }
+
+  @Post('invite-game/:room_id')
+  async invite_game(
+    @Req() req: Request,
+    @Param('room_id', ParseIntPipe) room_id: number,
+  ) {}
 }

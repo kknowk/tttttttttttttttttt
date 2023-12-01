@@ -4,6 +4,14 @@
     import { onMount } from "svelte";
     import { page } from "$app/stores"; // SvelteKitのpageストアをインポート
 
+    // import type { UserRelationshipKind } from "$lib/back/user/user.entity";
+    // import SetRelationshipButtons from "$lib/components/set-relationship-buttons.svelte";
+    import type { PageData } from "./$types";
+
+    export let data: PageData;
+
+    const userId = data.user_id; // ユーザーIDを取得
+
     let canvas: HTMLCanvasElement;
     let ctx: CanvasRenderingContext2D;
     let socket: Socket<DefaultEventsMap, DefaultEventsMap>;
@@ -61,7 +69,7 @@
 
         // ゲームルームIDを使用してソケット接続を確立
         socket = io(`https://vps.doche.io:30759`, {
-            query: { gameRoomId },
+            query: { gameRoomId, userId },
         });
 
         socket.on("gameState", (state) => {
