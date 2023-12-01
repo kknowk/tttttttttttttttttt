@@ -12,15 +12,24 @@ export class GameMatchingService {
 
     // 変更
     private lastGameRoomId = 0;
+    private lastinviteGameRoomId = 1;
 
     private generateGameRoomId(): number {
-        this.lastGameRoomId += 1;
+        this.lastGameRoomId += 2;
         return this.lastGameRoomId;
     }
 
-    // async inviteMatchMaking(requesterId: number, requestedIds: number[]): Promise<{gameRoomId: number}> {
+    private generateinviteGameRoomId(): number {
+        this.lastinviteGameRoomId += 2;
+        return this.lastinviteGameRoomId;
+    }
+
+    async inviteMatchMaking(requesterId: number, requestedIds: number[]): Promise<{gameRoomId: number}> {
         
-    // }
+        const gameRoomId = this.generateinviteGameRoomId();
+
+        return { gameRoomId };
+    }
 
     async startMatchmaking(playerId: number) {
         // マッチを探す

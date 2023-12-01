@@ -82,7 +82,7 @@
 
             console.log(`front winner ID: ${data.winner}`);
 
-            isWinner = data.winner === socket.id;
+            isWinner = data.winner === userId;
             // 3秒後にホーム画面にリダイレクト
             setTimeout(() => {
                 window.location.href = "/home";
@@ -92,11 +92,11 @@
         socket.on("gameInterrupted", () => {
             isDisconnect = true;
             console.log("front gameInterrupted");
-            alert("Connection lost. Redirecting to home.");
+            // alert("Connection lost. Redirecting to home.");
             // 3秒後にホーム画面にリダイレクト
-            // setTimeout(() => {
+            setTimeout(() => {
             window.location.href = "/home";
-            // }, 3000);
+            }, 3000);
         });
 
         window.addEventListener("keydown", keyDownHandler);

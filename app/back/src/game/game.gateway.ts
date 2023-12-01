@@ -30,7 +30,7 @@ interface GameRoom {
     ball: BallState;
     gameInterval: NodeJS.Timeout | null;
     gameStarted: boolean;
-    isLunatic: boolean;
+    isLunatic: number;
     winnerId?: number;
     loserId?: number;
     gameOver: boolean;
@@ -65,19 +65,25 @@ export class GameGateway {
 
     private gameRooms: Record<string, GameRoom> = {};
 
-    handleDisconnect(client: Socket) {
+    async handleDisconnect(client: Socket) {
         const gameRoomId = client.handshake.query.gameRoomId as string;
+        const userIdString = client.handshake.query.userId as string; // ユーザーIDを取得
+        const userId = Number(userIdString); // 文字列を数値に変換
+
         const gameRoom = this.gameRooms[gameRoomId];
         if (!gameRoom) return;
 
         // ゲームをノーコンテストとして扱う
         gameRoom.connect = false;
-        console.log(`gameInterrupted: ${gameRoom.connect}`);
+        console.log(`D gameInterrupted: ${gameRoom.connect}`);
 
-        // gameRoom.players[client.id].connect = false;
+        console.log(`disconnect: ${userId}`);
 
-        this.server.to(gameRoomId).emit('gameInterrupted');
+        Object.keys(gameRoom.players).forEach(clientId => {
+            this.server.to(clientId).emit('gameInterrupted');
+        });
 
+        console.log(`finish send: ${userId}`);
         // ゲームの更新を停止
         if (gameRoom.gameInterval) {
             clearInterval(gameRoom.gameInterval);
@@ -106,7 +112,7 @@ export class GameGateway {
                 ball: { x: 450, y: 300, dx: 3, dy: 1, radius: 10 },
                 gameInterval: null,
                 gameStarted: false,
-                isLunatic: false,
+                isLunatic: 0,
                 gameOver: false,
                 connect: true
             };
@@ -120,13 +126,17 @@ export class GameGateway {
         console.log(`gameInterrupted??: ${gameRoom.connect}`);
         if (gameRoom.connect == false) {
             console.log('final gameInterrupted');
+            console.log(`Client Intered? ID: ${client.id}, User ID: ${userId}`);
+            // setTimeout(() => {
+            //     this.server.to(gameRoomId).emit('gameInterrupted');
+            // }, 3000);
+            
+            Object.keys(gameRoom.players).forEach(clientId => {
+                this.server.to(clientId).emit('gameInterrupted');
+            });
+            console.log(`wasshoy!!!!!!!!!!`);
 
-            setTimeout(() => {
-                this.server.to(gameRoomId).emit('gameInterrupted');
-            }, 3000);
-
-
-            delete this.gameRooms[gameRoomId];
+            // delete this.gameRooms[gameRoomId];
             return;
         }
         gameRoom.players[client.id] = { paddleY: 300, ready: false, position, name, score: 5 , userId};
@@ -149,10 +159,8 @@ export class GameGateway {
 
         if (!gameRoom) return;
         if (gameRoom.players[client.id]) {
-            gameRoom.players[client.id].ready = true;
-            gameRoom.isLunatic = true; // ルナティックモードを有効にする
+            gameRoom.isLunatic += 1; // ルナティックモードを有効にする
         }
-        this.checkStartGame(gameRoomId); // ゲームルームIDに基づいてゲームを開始するかをチェック
     }
 
     @SubscribeMessage('movePaddle')
@@ -197,8 +205,9 @@ export class GameGateway {
         if (gameRoom.ball.y - gameRoom.ball.radius < 0 || gameRoom.ball.y + gameRoom.ball.radius > 600) {
             gameRoom.ball.dy = -gameRoom.ball.dy;
             if (gameRoom.isLunatic) {
-                gameRoom.ball.dx *= 1.5;
-                gameRoom.ball.dy *= 1.5;
+                console.log("Lunatic!!!!!!!!!!!!!!!!!!!!");
+                gameRoom.ball.dx = Math.min(gameRoom.ball.dx * 1.5 * gameRoom.isLunatic, MAX_SPEED);
+                gameRoom.ball.dy = Math.min(gameRoom.ball.dy * 1.5 * gameRoom.isLunatic, MAX_SPEED);
             }
         }
 
@@ -309,11 +318,12 @@ export class GameGateway {
 
             clearInterval(gameRoom.gameInterval);
 
+
             // 3秒後にゲームを再開
             setTimeout(() => {
                 gameRoom.gameStarted = true;
                 gameRoom.gameOver = false;
-                gameRoom.isLunatic = false;
+                // gameRoom.isLunatic = false;
                 gameRoom.gameInterval = setInterval(() => this.updateGameState(gameRoomId), 1000 / 60);
             }, 3000);
         }
