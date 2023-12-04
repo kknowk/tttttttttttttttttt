@@ -51,10 +51,13 @@ export class DirectMessageRoomService {
     return answer;
   }
 
-  async get_rooms(
-    request: IRangeRequestWithUserId,
-  ): Promise<
-    { room_id: number; counterpart_id: number; counterpart_name: string }[]
+  async get_rooms(request: IRangeRequestWithUserId): Promise<
+    {
+      room_id: number;
+      counterpart_id: number;
+      counterpart_name: string;
+      last_log_id: number;
+    }[]
   > {
     const relationship_query0 = this.relationshipRepository
       .createQueryBuilder()
@@ -79,8 +82,11 @@ export class DirectMessageRoomService {
       .select('a.room_id', 'room_id')
       .addSelect('b.user_id', 'counterpart_id')
       .addSelect('u.displayName', 'counterpart_name')
+      .addSelect('max(l.id) OVER (PARTITION BY l.room_id)', 'last_log_id')
+      .distinctOn(['room_id'])
       .innerJoin(DirectMessageRoomMembership, 'b', 'a.room_id=b.room_id')
       .innerJoin(User, 'u', 'u.id=b.user_id')
+      .innerJoin(DirectMessageLog, 'l', 'l.room_id=b.room_id')
       .where('a.user_id = :requester_id')
       .andWhere('b.user_id <> :requester_id')
       .andWhere('NOT EXISTS (SELECT 1 FROM r0 WHERE r0.id=b.user_id)')
@@ -198,7 +204,7 @@ export class DirectMessageRoomService {
       );
       await this.userService.notify(
         counterpart_id,
-        `New Message@<a href="/home/direct-message/${requester_id}">${await this.userService.get_display_name(
+        `New Message from <a href="/home/direct-message/${requester_id}">${await this.userService.get_display_name(
           requester_id,
         )}</a>`,
       );

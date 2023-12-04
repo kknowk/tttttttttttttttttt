@@ -167,9 +167,6 @@ export class ChatLog {
   is_html: boolean;
 }
 
-export class PartialChatLog {
-  id: number;
-  member_id: number;
-  content: string;
-  date: number;
+export type IChatLog = {
+  [K in keyof Omit<ChatLog, 'room_id'>]: ChatLog[K]
 }

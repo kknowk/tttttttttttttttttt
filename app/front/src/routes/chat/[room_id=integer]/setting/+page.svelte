@@ -72,8 +72,6 @@
   }
 </script>
 
-<div bind:this={failureElem} class="failure-div">Your input is invalid.</div>
-
 <form on:submit={submitFunc}>
   <label>
     Name:
@@ -109,6 +107,8 @@
   </div>
 </form>
 
+<div bind:this={failureElem} class="failure-div">Your input is invalid.</div>
+
 <style>
   .failure-div {
     display: none;
@@ -121,5 +121,10 @@
     padding: 15px;
     box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.2);
     z-index: 1000;
+  }
+
+  form {
+    padding-top: 1ex;
+    padding: 1em;
   }
 </style>

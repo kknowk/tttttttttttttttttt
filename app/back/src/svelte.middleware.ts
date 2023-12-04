@@ -3,7 +3,11 @@ import type { NextFunction } from 'express';
 // @ts-ignore
 import { handler } from './front/handler.js';
 import { UserService } from './user/user.service.js';
-import { AuthService } from './auth/auth.service.js';
+import {
+  AuthService,
+  JwtPayload,
+  fromJwtPayloadToIUser,
+} from './auth/auth.service.js';
 import { GameService } from './game/game.service.js';
 import { ChatRoomService } from './chat-room/chat-room.service.js';
 import { DirectMessageRoomService } from './direct-message-room/direct-message-room.service.js';
@@ -27,7 +31,7 @@ export class SvelteMiddleware implements NestMiddleware {
     gameMatchingService: GameMatchingService,
     jwtService: JwtService,
     configService: ConfigService,
-    GameGateway: GameGateway
+    GameGateway: GameGateway,
   ) {
     this.services = {
       authService,
@@ -38,26 +42,35 @@ export class SvelteMiddleware implements NestMiddleware {
       gameMatchingService,
       jwtService,
       configService,
-      GameGateway
+      GameGateway,
     };
   }
 
   async use(req: RequestWithServices, res: Response, next: NextFunction) {
     console.log(req.url);
-    if (req.url.startsWith('/api/') || req.url.startsWith('/auth') || req.url.startsWith('/images')) {
+    if (
+      req.url.startsWith('/api/') ||
+      req.url === '/auth' ||
+      req.url.startsWith('/auth/') ||
+      req.url.startsWith('/auth?') ||
+      req.url.startsWith('/auth#') ||
+      req.url.startsWith('/images')
+    ) {
       return next();
     }
-    if (req.method.toLowerCase() === 'get' && (req.url.endsWith('.js') || req.url.endsWith('.css') || req.url.endsWith('.map'))) {
+    if (
+      req.method.toLowerCase() === 'get' &&
+      (req.url.endsWith('.js') ||
+        req.url.endsWith('.css') ||
+        req.url.endsWith('.map'))
+    ) {
       return handler(req, res, next);
     }
     const jwt = req.cookies?.jwt;
     if (jwt) {
       let decoded = this.services.jwtService.decode(jwt, { json: true });
       if (typeof decoded === 'string') return next();
-      const id = decoded['sub'];
-      req.user = await this.services.userService.findById(id);
-      if (req.user) req.user.is_two_factor_authenticated = decoded['au'];
-      else this.services.authService.clear_jwt(res);
+      req.user = fromJwtPayloadToIUser(decoded as JwtPayload);
     }
     req.services = this.services;
     handler(req, res, next);

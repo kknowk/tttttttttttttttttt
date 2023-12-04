@@ -4,7 +4,7 @@
   import EnterKeyTextarea from "$lib/components/enter-key-textarea.svelte";
   import InfiniteScrolling from "$lib/components/infinite-scrolling.svelte";
   import { onDestroy, onMount } from "svelte";
-  import type { PartialChatLog } from "$lib/back/chat-room/chat-room.entity";
+  import type { IChatLog } from "$lib/back/chat-room/chat-room.entity";
   import { browser } from "$app/environment";
   import { goto } from "$app/navigation";
 
@@ -25,7 +25,7 @@
 
   async function renewLogs(response: Response) {
     if (response.ok) {
-      const new_logs = (await response.json()) as PartialChatLog[] | null;
+      const new_logs = (await response.json()) as IChatLog[] | null;
       if (new_logs != null && new_logs.length > 0) {
         if (logs) {
           new_logs.push(...logs);
@@ -107,7 +107,7 @@
     if (!response.ok) {
       return;
     }
-    const old_logs = (await response.json()) as PartialChatLog[] | null;
+    const old_logs = (await response.json()) as IChatLog[] | null;
     if (old_logs != null && old_logs.length > 0) {
       if (logs) {
         logs.push(...old_logs);
@@ -192,15 +192,17 @@
   {#if logs}
     <EnterKeyTextarea sendMessageCallback={sendMessage} />
     {#each logs as log}
-      <Message
-        message_id={log.id}
-        content={log.content}
-        user_id={log.member_id}
-        user_name={getDisplayName(log.member_id)}
-        utcSeconds={log.date}
-        {now}
-        is_html={log.is_html}
-      />
+      <div class="message">
+        <Message
+          message_id={log.id}
+          content={log.content}
+          user_id={log.member_id}
+          user_name={getDisplayName(log.member_id)}
+          utcSeconds={log.date}
+          {now}
+          is_html={log.is_html}
+        />
+      </div>
     {/each}
     <InfiniteScrolling disabled={infiniteDisabled} callback={getHistory} />
   {:else if data.room.kind === 0}
@@ -223,3 +225,15 @@
     </div>
   {/if}
 </main>
+
+<style>
+  .message {
+    padding-top: 1ex;
+    padding-bottom: 1ex;
+
+    & + .message {
+      border-top: solid;
+      border-top-color: slategray;
+    }
+  }
+</style>

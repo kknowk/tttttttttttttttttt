@@ -2,12 +2,22 @@
   let area: HTMLTextAreaElement;
   let button: HTMLButtonElement;
 
-  export let sendMessageCallback: (areaElement: HTMLTextAreaElement, buttonElement: HTMLButtonElement) => Promise<void> | void;
+  export let sendMessageCallback: (
+    areaElement: HTMLTextAreaElement,
+    buttonElement: HTMLButtonElement
+  ) => Promise<void> | void;
 
   async function keydownHook(event: KeyboardEvent) {
-    if (event.key === 'Enter' && !event.shiftKey) {
+    if (event.key !== "Enter") {
+      return;
+    }
+    if (!event.shiftKey) {
       event.preventDefault();
       button.click();
+    } else {
+      const currentHeight = area.style.height ?? "4lh";
+      const lineHeight = Number.parseInt(currentHeight.slice(0, currentHeight.length - 2)) + 1;
+      area.style.height = `${lineHeight}lh`;
     }
   }
 
@@ -38,8 +48,40 @@
   }
 
   form {
+    & textarea {
+      width: 100%;
+      height: 4lh;
+    }
+
     & button {
-      height: max-content;
+      display: block;
+      color: unset;
+      text-align: center;
+      align-items: flex-start;
+      cursor: pointer;
+      background-color: unset;
+      margin: unset;
+      padding: unset;
+      padding-top: 1ex;
+      padding-bottom: 1ex;
+      border: unset;
+      width: 100%;
+      background-color: lavenderblush;
+      font-style: unset;
+      font-variant-ligatures: unset;
+      font-variant-caps: unset;
+      font-variant-numeric: unset;
+      font-variant-east-asian: unset;
+      font-variant-alternates: unset;
+      font-variant-position: unset;
+      font-weight: unset;
+      font-stretch: unset;
+      font-size: unset;
+      font-family: unset;
+      font-optical-sizing: unset;
+      font-kerning: unset;
+      font-feature-settings: unset;
+      font-variation-settings: unset;
     }
   }
 </style>

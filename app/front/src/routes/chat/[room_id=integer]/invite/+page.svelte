@@ -1,10 +1,10 @@
 <script lang="ts">
-  import type { IUserWithRelationship } from '$lib/back/user/user.entity';
-  import type { PageData } from './$types';
+  import type { IUserWithRelationship } from "$lib/back/user/user.entity";
+  import type { PageData } from "./$types";
 
   export let data: PageData;
 
-  let user_name: string = '';
+  let user_name: string = "";
 
   async function searchByName(user_name: string): Promise<IUserWithRelationship[]> {
     if (user_name.length === 0) return [];
@@ -36,13 +36,13 @@
       }
     }
     const response = await fetch(`/api/chat-room/invite/${data.room.id}`, {
-      method: 'POST',
+      method: "POST",
       body: JSON.stringify(numbers),
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
     });
-    user_name = '';
+    user_name = "";
   }
 </script>
 
@@ -80,11 +80,21 @@
 
 <style>
   .sticky {
-    top: 0;
     position: sticky;
+    top: 0;
+    padding: 0.5em;
+    padding-top: 1ex;
   }
 
-  input[form='main-form'] {
+  #main-form {
+    padding: 1em;
+
+    & div {
+      margin-top: 0.5em;
+    }
+  }
+
+  input[form="main-form"] {
     min-width: 20%;
   }
 </style>

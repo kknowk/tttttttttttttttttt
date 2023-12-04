@@ -1,9 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
-import { ExtractJwt, Strategy } from 'passport-jwt';
+import { ExtractJwt, Strategy, StrategyOptions } from 'passport-jwt';
 import { UserService } from '../user/user.service.js';
-import { IUser } from '../user/user.entity.js';
+import { IUser, UserActivityKind } from '../user/user.entity.js';
+import { JwtPayload, fromJwtPayloadToIUser } from './auth.service.js';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
@@ -23,17 +24,15 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       ]),
       ignoreExpiration: false,
       secretOrKey: configService.get('JWT_SECRET'),
-    });
+    } as StrategyOptions);
   }
 
-  async validate(payload: { sub: number; au: boolean }) {
-    const user: IUser = await this.userService.findById(payload.sub);
-    if (user == null) return null;
-    await this.userService.update_user_activity(user.id);
-    user.is_two_factor_authenticated = false;
-    if (user.two_factor_authentication_required && payload.au) {
-      user.is_two_factor_authenticated = true;
-    }
+  async validate(payload: JwtPayload) {
+    const user: IUser = fromJwtPayloadToIUser(payload);
+    user.last_activity_timestamp = await this.userService.update_user_activity(
+      user.id,
+      UserActivityKind.login,
+    );
     return user;
   }
 }

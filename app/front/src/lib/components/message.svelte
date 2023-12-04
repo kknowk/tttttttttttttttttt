@@ -41,3 +41,9 @@
     <pre>{content}</pre>
   {/if}
 </article>
+
+<style>
+  pre {
+    font-family: unset;
+  }
+</style>

@@ -1,9 +1,14 @@
 <script lang="ts">
-  import type { ChatRoomKind } from '$lib/back/chat-room/chat-room.entity';
+  import type { ChatRoomKind } from "$lib/back/chat-room/chat-room.entity";
 
   let selectedKind: ChatRoomKind = 0;
 
-  export let callback: (button: HTMLButtonElement, name: string, kind: ChatRoomKind, password?: string) => Promise<boolean>;
+  export let callback: (
+    button: HTMLButtonElement,
+    name: string,
+    kind: ChatRoomKind,
+    password?: string
+  ) => Promise<boolean>;
 
   let button: HTMLButtonElement;
   let nameElem: HTMLInputElement;
@@ -25,16 +30,16 @@
       }
     }
     if (!success) {
-      failureElem.style.display = 'block';
+      failureElem.style.display = "block";
       setTimeout(() => {
-        failureElem.style.display = 'none';
+        failureElem.style.display = "none";
         button.disabled = false;
       }, 3000);
     }
   }
 
   function changeRadio(ev: Event) {
-    if (ev.target == null || !('value' in ev.target)) {
+    if (ev.target == null || !("value" in ev.target)) {
       return;
     }
     const value = Number.parseInt(ev.target.value as string);
@@ -47,7 +52,7 @@
 <div bind:this={failureElem} class="failure-div">Your input is invalid.</div>
 
 <form on:submit={submitFunc}>
-  <label>
+  <label class="grid-container">
     Name:
     <input type="text" bind:this={nameElem} minlength="1" maxlength="32" />
   </label>
@@ -74,7 +79,13 @@
   </fieldset>
   <label>
     Password(Minimum 8 letters):
-    <input type="password" name="password" bind:this={passwordElem} disabled={selectedKind !== 1} minlength="8" />
+    <input
+      type="password"
+      name="password"
+      bind:this={passwordElem}
+      disabled={selectedKind !== 1}
+      minlength="8"
+    />
   </label>
   <div>
     <button type="submit" bind:this={button}>Create New Chat Room</button>
@@ -93,5 +104,30 @@
     padding: 15px;
     box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.2);
     z-index: 1000;
+  }
+
+  .grid-container {
+    display: grid;
+    grid-template-columns: auto 1fr;
+
+    & input[type="text"] {
+      width: 100%;
+    }
+  }
+
+  fieldset {
+    margin-top: 1ex;
+    margin-bottom: 1ex;
+  }
+
+  fieldset + label {
+    display: block;
+    margin-top: 1ex;
+    margin-bottom: 1ex;
+  }
+
+  button {
+    padding: 1ex;
+    width: 100%;
   }
 </style>

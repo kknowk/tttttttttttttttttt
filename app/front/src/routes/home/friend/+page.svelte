@@ -1,6 +1,6 @@
 <script lang="ts">
-  import type { PageData } from './$types';
-  import { default as SetRelationshipButtons } from '$lib/components/set-relationship-buttons.svelte';
+  import type { PageData } from "./$types";
+  import { default as SetRelationshipButtons } from "$lib/components/set-relationship-buttons.svelte";
 
   export let data: PageData;
 
@@ -10,7 +10,7 @@
   }
 
   async function setRelationship(button: HTMLButtonElement) {
-    const user_id = Number.parseInt(button.dataset['id'] ?? '');
+    const user_id = Number.parseInt(button.dataset["id"] ?? "");
     const foundIndex = data.friends.findIndex((value, _, __) => {
       return value.id === user_id;
     });
@@ -28,13 +28,31 @@
         {#if friend.activity_kind === 0}
           Logout
         {:else if friend.activity_kind === 1}
-          Login ({fromSecondsToDate(friend.last_activity_timestamp)})
+          Login ({fromSecondsToDate(friend.last_activity_timestamp).toString()})
         {:else}
           In Game
         {/if}
       </div>
       <a href="/home/direct-message/{friend.id}"> Send Direct Message </a>
-      <SetRelationshipButtons user_id={friend.id} user_relationship={1} callback={setRelationship} />
+      <SetRelationshipButtons
+        user_id={friend.id}
+        user_relationship={1}
+        callback={setRelationship}
+      />
     </li>
   {/each}
 </ul>
+
+<style>
+  ul {
+    padding-top: 1ex;
+
+    & li {
+      padding-top: 1ex;
+      padding-bottom: 1ex;
+      & + li {
+        border-top: solid;
+      }
+    }
+  }
+</style>

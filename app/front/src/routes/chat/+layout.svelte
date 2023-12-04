@@ -1,14 +1,20 @@
 <script lang="ts">
-  import UserMenu from '$lib/components/user-menu.svelte';
+  import UserMenu from "$lib/components/user-menu.svelte";
 </script>
 
-<header class="sticky">
-  <UserMenu />
-</header>
-<slot />
+<div class="grid-container">
+  <div>
+    <UserMenu />
+  </div>
+  <div class="grid-main">
+    <slot />
+  </div>
+</div>
 
 <style>
-  .sticky {
-    position: sticky;
+  .grid-container {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    min-height: max(100%, 100vh);
   }
 </style>

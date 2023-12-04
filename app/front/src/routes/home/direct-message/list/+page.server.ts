@@ -1,6 +1,6 @@
-import { getOriginalRequest, createIRangeRequestWithUserFromURLSearchParams } from '$lib/helpers';
-import { error } from '@sveltejs/kit';
-import type { PageServerLoadEvent } from './$types';
+import { getOriginalRequest, createIRangeRequestWithUserFromURLSearchParams } from "$lib/helpers";
+import { error } from "@sveltejs/kit";
+import type { PageServerLoadEvent } from "./$types";
 
 export async function load(ev: PageServerLoadEvent) {
   const parent = await ev.parent();
@@ -12,11 +12,19 @@ export async function load(ev: PageServerLoadEvent) {
     throw error(500);
   }
   const params = ev.url.searchParams;
-  const rangeRequest = createIRangeRequestWithUserFromURLSearchParams(parent.user.id, params, 50, true);
+  const rangeRequest = createIRangeRequestWithUserFromURLSearchParams(
+    parent.user.id,
+    params,
+    50,
+    true
+  );
   if (rangeRequest === null) {
     throw error(500);
   }
   const rooms = await service.get_rooms(rangeRequest);
+  rooms.sort((a, b) => {
+    return a.last_log_id < b.last_log_id ? 1 : a.last_log_id === b.last_log_id ? 0 : -1;
+  });
   return {
     user: parent.user,
     rooms: rooms,

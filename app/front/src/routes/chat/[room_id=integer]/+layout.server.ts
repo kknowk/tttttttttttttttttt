@@ -1,6 +1,6 @@
 import { error } from '@sveltejs/kit';
 import { getOriginalRequest, createIRangeRequestWithUserFromURLSearchParams } from '$lib/helpers';
-import type { ChatRoomMembershipKind, IChatRoom, IPartialChatRoomMembership, PartialChatLog } from '$lib/back/chat-room/chat-room.entity';
+import type { ChatRoomMembershipKind, IChatRoom, IPartialChatRoomMembership, IChatLog } from '$lib/back/chat-room/chat-room.entity';
 import type { IUser, IUserWithRelationship } from '$lib/back/user/user.entity';
 import type { Services } from '$lib/back/svelte.services';
 import type { LayoutServerLoadEvent } from './$types';
@@ -16,7 +16,7 @@ type DataType =
   | {
       user: IUser;
       room: IChatRoom;
-      logs: PartialChatLog[];
+      logs: IChatLog[];
       members: Map<number, ChatRoomMembershipKind>;
       users: Map<number, IUserWithRelationship>;
     };

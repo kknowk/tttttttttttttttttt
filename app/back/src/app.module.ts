@@ -42,13 +42,13 @@ import { SvelteMiddleware } from './svelte.middleware.js';
 import { GameLog } from './game/game.entity.js';
 import { FtStrategy } from './auth/ft.strategy.js';
 import { JwtStrategy } from './auth/jwt.strategy.js';
-import { ApiHomeController } from './home/api-home.controller.js';
 import { SendMailService } from './auth/sendmail.service.js';
 import { text } from 'express';
 import { ApiGameMatchingController } from './game-matching/api-game-matching.controller.js';
 import { GameGateway } from './game/game.gateway.js';
 import { JsonPipe } from './custom-pipe/json-pipe.js';
 import { ScheduleModule } from '@nestjs/schedule';
+import { JwtUpdateInterceptor } from './auth/jwt.update.interceptor.js';
 
 const entities: Function[] = [
   User,
@@ -73,7 +73,6 @@ const entities: Function[] = [
     ApiUserController,
     ApiChatRoomController,
     ApiDirectMessageRoomController,
-    ApiHomeController,
     ApiGameMatchingController,
     AuthController,
   ],
@@ -91,6 +90,7 @@ const entities: Function[] = [
     SendMailService,
     GameGateway,
     JsonPipe,
+    JwtUpdateInterceptor,
   ],
   imports: [
     TypeOrmModule.forRootAsync({

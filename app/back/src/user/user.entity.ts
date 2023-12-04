@@ -32,8 +32,9 @@ export class User {
   displayName: string;
 
   @Column({
-    type: 'int8',
+    type: 'int',
     comment: 'UTC seconds',
+    default: 0,
   })
   last_activity_timestamp: number;
 
@@ -50,10 +51,29 @@ export class User {
   two_factor_authentication_required: boolean;
 
   @Column({
-    type: 'int8',
+    type: 'int',
     default: -1,
   })
   notice_read_id: number;
+
+  @Column({
+    type: 'varchar',
+    default: '',
+  })
+  two_factor_temp: string;
+
+  @Column({
+    type: 'varchar',
+    default: '',
+  })
+  two_factor_salt: string;
+
+  @Column({
+    type: 'int',
+    default: 0,
+    comment: 'utc seconds',
+  })
+  two_factor_valid_limit: number;
 
   to_interface() {
     return {
@@ -69,13 +89,17 @@ export class User {
   }
 }
 
-type _IUser = {
-  [K in keyof Omit<User, 'to_interface'>]: User[K];
-};
-
-export interface IUser extends _IUser {
+export type IUser = {
+  [K in keyof Omit<
+    User,
+    | 'to_interface'
+    | 'two_factor_temp'
+    | 'two_factor_salt'
+    | 'two_factor_valid_limit'
+  >]: User[K];
+} & {
   is_two_factor_authenticated: boolean;
-}
+};
 
 @Entity()
 export class User42Cross {
@@ -234,10 +258,10 @@ export type IUserWithRelationship = {
 
 @Entity()
 export class Notice {
-  @PrimaryColumn()
+  @PrimaryGeneratedColumn()
   id: number;
 
-  @OneToOne(() => User, { nullable: false, cascade: ['remove'] })
+  @ManyToOne(() => User, { nullable: false, cascade: ['remove'] })
   @JoinColumn({
     name: 'user_id',
     referencedColumnName: 'id',
@@ -259,7 +283,7 @@ export class Notice {
   @Column({
     type: 'int',
     default: 0,
-    comment: 'utc seconds'
+    comment: 'utc seconds',
   })
   date: number;
 }

@@ -26,6 +26,7 @@ import {
   addOrderAndLimit,
 } from '../utility/range-request.js';
 import { InsertQueryBuilder } from 'typeorm/browser';
+import { genSalt, hash } from 'bcrypt';
 
 @Injectable()
 export class UserService {
@@ -108,7 +109,7 @@ export class UserService {
   public async update_user_activity(
     id: number,
     kind?: UserActivityKind,
-  ): Promise<void> {
+  ): Promise<number> {
     const time = this.#calc_time();
     if (kind == null) {
       await this.userRepository.update(
@@ -121,6 +122,7 @@ export class UserService {
         { last_activity_timestamp: time, activity_kind: kind },
       );
     }
+    return time;
   }
 
   public async get_friends(
@@ -323,8 +325,8 @@ export class UserService {
 
   public async get_display_name(user_id: number): Promise<string | null> {
     const query = this.userRepository
-      .createQueryBuilder()
-      .select('displayName', 'displayName')
+      .createQueryBuilder('u')
+      .select('u.displayName', 'displayName')
       .where('id=:user_id', { user_id });
     const result = await query.getRawOne();
     if (result == null) {
@@ -360,12 +362,12 @@ export class UserService {
 
   public async notify(user_id: number | number[], content: string) {
     let query: InsertQueryBuilder<any>;
-    const now = Math.floor(Date.now() / 1000);
+    const date = Math.floor(Date.now() / 1000);
     if (typeof user_id === 'number') {
       query = this.noticeRepository.createQueryBuilder().insert().values({
         user_id,
         content,
-        date: now,
+        date,
       });
     } else if (user_id instanceof Array) {
       if (user_id.length === 0) {
@@ -379,25 +381,40 @@ export class UserService {
             return {
               user_id: value,
               content,
-              date: now,
+              date,
             };
           }),
-        );
+        )
+        .returning([]);
     } else {
       return;
     }
     await query.execute();
   }
 
-  public async get_notice(rangeRequest: IRangeRequestWithUserId) {
+  public async get_notice(rangeRequest: IRangeRequestWithUserId): Promise<
+    [
+      {
+        id: number;
+        content: string;
+        date: number;
+      }[],
+      number,
+    ]
+  > {
     let query = this.noticeRepository
       .createQueryBuilder()
       .select('id', 'id')
       .addSelect('content', 'content')
+      .addSelect('date', 'date')
       .where('user_id=:user_id', { user_id: rangeRequest.user_id });
     query = addWhereCondition(rangeRequest, query, 'id', true);
     query = addOrderAndLimit(rangeRequest, query, 'id');
-    const result = await query.getRawMany<{ id: number; content: string }>();
+    const result = await query.getRawMany<{
+      id: number;
+      content: string;
+      date: number;
+    }>();
     let maxId: number = -1;
     for (const { id } of result) {
       if (id > maxId) {
@@ -410,19 +427,81 @@ export class UserService {
       .set({
         notice_read_id: maxId,
       })
-      .where('id=:id', { id: rangeRequest.user_id });
+      .where('id=:id AND :maxId > notice_read_id', {
+        id: rangeRequest.user_id,
+        maxId,
+      });
     await updateQuery.execute();
-    return result;
+    return [result, maxId];
   }
 
   public async get_notice_count(rangeRequest: IRangeRequestWithUserId) {
     let query = this.noticeRepository
       .createQueryBuilder()
-      .select('id')
+      .select('1')
       .where('user_id=:user_id', { user_id: rangeRequest.user_id });
     query = addWhereCondition(rangeRequest, query, 'id', true);
     query = addOrderAndLimit(rangeRequest, query, 'id');
     const result = await query.getCount();
     return result;
+  }
+
+  public async clear_notice(requester_id: number) {
+    const { notice_read_id } = await this.userRepository
+      .createQueryBuilder()
+      .select('notice_read_id', 'notice_read_id')
+      .where('id=:requester_id', { requester_id })
+      .getRawOne();
+    const query = this.noticeRepository
+      .createQueryBuilder()
+      .delete()
+      .where('user_id=:requester_id AND id<=:notice_read_id', {
+        requester_id,
+        notice_read_id,
+      });
+    await query.execute();
+  }
+
+  public async set_2fa_temp(requester_id: number, value: string | Buffer) {
+    const newSalt = await genSalt();
+    const validEnd = Math.floor(Date.now() / 1000) + 60 * 10 * 1000;
+    const newHash = await hash(value, newSalt);
+    const query = this.userRepository
+      .createQueryBuilder()
+      .update()
+      .set({
+        two_factor_temp: newHash,
+        two_factor_salt: newSalt,
+        two_factor_valid_limit: validEnd,
+      })
+      .where('id=:requester_id AND two_factor_authentication_required', {
+        requester_id,
+      });
+    await query.execute();
+  }
+
+  public async compare_2fa(
+    requester_id: number,
+    value: string | Buffer,
+  ): Promise<boolean | null> {
+    const query = this.userRepository
+      .createQueryBuilder()
+      .select('two_factor_temp', 'two_factor_temp')
+      .addSelect('two_factor_salt', 'two_factor_salt')
+      .addSelect('two_factor_valid_limit', 'two_factor_valid_limit')
+      .where('id=:requester_id AND two_factor_authentication_required', {
+        requester_id,
+      });
+    const result = await query.getRawOne();
+    if (result == null) {
+      return null;
+    }
+    const now = Math.floor(Date.now() / 1000);
+    if (now > result.two_factor_valid_limit) {
+      return false;
+    }
+    const hashed = await hash(value, result.two_factor_salt);
+    const compareResult = hashed === result.two_factor_temp;
+    return compareResult;
   }
 }

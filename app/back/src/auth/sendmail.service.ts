@@ -26,9 +26,17 @@ export class SendMailService {
   }
 
   async sendMail(user_id: number, subject: string, text: string) {
-    const email_address = (await this.infoRepository.createQueryBuilder().select('email').where('id=:id', { id: user_id }).getRawOne())?.email;
-    if (typeof email_address !== 'string') throw new Error('email_address type is not string.');
-    if (email_address.length === 0) throw new Error('email_address length is 0.');
+    const email_address = (
+      await this.infoRepository
+        .createQueryBuilder()
+        .select('email')
+        .where('id=:id', { id: user_id })
+        .getRawOne()
+    )?.email;
+    if (typeof email_address !== 'string')
+      throw new Error('email_address type is not string.');
+    if (email_address.length === 0)
+      throw new Error('email_address length is 0.');
     await this.porter.sendMail({
       from: this.sender,
       to: email_address,

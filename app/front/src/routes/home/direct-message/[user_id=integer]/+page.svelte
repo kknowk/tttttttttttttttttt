@@ -132,6 +132,17 @@
     logs == null ||
     logs.length === 0 ||
     logs[logs.length - 1].id === data.room.start_inclusive_log_id;
+
+  async function inviteFunc() {
+    const response = await fetch("/api/matchmaking/invite", {
+      method: "POST",
+      body: JSON.stringify([data.counterpart.id]),
+    });
+    if (response.ok) {
+      const gameRoomId = (await response.json()) as number;
+      await goto(`/game_pong/${gameRoomId}`, { invalidateAll: true });
+    }
+  }
 </script>
 
 <svelte:head>
@@ -141,33 +152,80 @@
   </title>
 </svelte:head>
 
-<nav>
-  <menu>
-    <button>Invite Game</button>
+<div class="grid-container">
+  <div class="grid-main">
+    <EnterKeyTextArea sendMessageCallback={sendMessage} />
+    <main>
+      {#if logs}
+        {#each logs as log}
+          <div class="message">
+            <Message
+              message_id={log.id}
+              user_id={log.member_id}
+              user_name={log.member_id === data.user.id
+                ? data.user.displayName
+                : data.counterpart.displayName}
+              utcSeconds={log.date}
+              content={log.content}
+              {now}
+              is_html={log.is_html}
+            />
+          </div>
+        {/each}
+        <InfiniteScrolling disabled={infiniteDisabled} callback={getHistory} />
+      {/if}
+    </main>
+  </div>
+  <menu class="grid-nav">
+    <button on:click={inviteFunc}>Invite to New Game</button>
     <SetRelationshipButtons
       user_id={data.counterpart.id}
       user_relationship={1}
       callback={relationshipCallback}
     />
   </menu>
-</nav>
+</div>
 
-<EnterKeyTextArea sendMessageCallback={sendMessage} />
-<main>
-  {#if logs}
-    {#each logs as log}
-      <Message
-        message_id={log.id}
-        user_id={log.member_id}
-        user_name={log.member_id === data.user.id
-          ? data.user.displayName
-          : data.counterpart.displayName}
-        utcSeconds={log.date}
-        content={log.content}
-        {now}
-        is_html={log.is_html}
-      />
-    {/each}
-    <InfiniteScrolling disabled={infiniteDisabled} callback={getHistory} />
-  {/if}
-</main>
+<style>
+  .grid-container {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    min-height: max(100%, 100vh);
+
+    & .grid-main {
+      padding-top: 1ex;
+      padding-right: 0.5em;
+    }
+
+    & .grid-nav {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      display: grid;
+      grid-template-rows: 2fr 1fr 1fr;
+      background-color: blanchedalmond;
+
+      & button {
+        display: block;
+        color: unset;
+        text-align: center;
+        align-items: flex-start;
+        cursor: pointer;
+        background-color: unset;
+        margin: unset;
+        padding: unset;
+        border: unset;
+        width: 100%;
+
+        & + button {
+          border-top: solid;
+        }
+      }
+    }
+  }
+
+  .message + .message {
+    border-top: solid;
+    border-top-color: slategray;
+  }
+</style>

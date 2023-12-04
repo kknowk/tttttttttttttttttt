@@ -22,7 +22,6 @@
   });
 
   $: (() => {
-    console.log('inifinity: ' + disabled);
     if (disabled && observer) {
       observer.disconnect();
       observer = null;

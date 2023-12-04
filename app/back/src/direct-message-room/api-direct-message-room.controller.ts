@@ -11,8 +11,7 @@ import {
   NotFoundException,
   ParseIntPipe,
   PayloadTooLargeException,
-  ParseBoolPipe,
-  Query,
+  UseInterceptors,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import type { Request } from 'express';
@@ -20,8 +19,10 @@ import { IUser, UserRelationshipKind } from '../user/user.entity.js';
 import { UserService } from '../user/user.service.js';
 import { DirectMessageRoomService } from './direct-message-room.service.js';
 import { createIRangeRequestWithUserFromURLSearchParams } from '../utility/range-request.js';
+import { JwtUpdateInterceptor } from '../auth/jwt.update.interceptor.js';
 
 @UseGuards(AuthGuard('jwt'))
+@UseInterceptors(JwtUpdateInterceptor)
 @Controller('api/direct-message-room')
 export class ApiDirectMessageRoomController {
   constructor(
@@ -33,7 +34,6 @@ export class ApiDirectMessageRoomController {
   async send_message(
     @Req() req: Request,
     @Param('counterpart_id', ParseIntPipe) counterpart_id: number,
-    @Query('is_html', ParseBoolPipe) is_html: boolean,
     @Body() body: string,
   ) {
     if (body == null || body.length === 0) {
@@ -119,10 +119,4 @@ export class ApiDirectMessageRoomController {
     }
     return await this.directMessageRoomService.get_logs(room_id, rangeRequest);
   }
-
-  @Post('invite-game/:room_id')
-  async invite_game(
-    @Req() req: Request,
-    @Param('room_id', ParseIntPipe) room_id: number,
-  ) {}
 }

@@ -13,9 +13,9 @@ export function getOriginalRequest(ev: { platform: any | undefined }) {
 
 export function redirectToAuth(url: URL, user: IUser | null | undefined) {
   if (user == null) {
-    if (url.pathname !== '/auth') throw redirect(307, '/auth');
+    if (url.pathname !== '/authentication') throw redirect(307, '/authentication');
   } else if (user.two_factor_authentication_required && !user.is_two_factor_authenticated) {
-    if (url.pathname !== '/home/auth') throw redirect(307, '/home/auth');
+    if (url.pathname !== '/authentication') throw redirect(307, '/authentication');
   }
   return user;
 }

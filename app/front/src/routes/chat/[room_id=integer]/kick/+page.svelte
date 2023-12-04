@@ -54,5 +54,15 @@
 <style>
   .sticky {
     position: sticky;
+    padding: 0.5em;
+    padding-top: 1ex;
+  }
+
+  form {
+    padding: 1em;
+
+    & div {
+      margin-top: 0.5em;
+    }
   }
 </style>

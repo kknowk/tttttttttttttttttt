@@ -1,90 +1,109 @@
 <script lang="ts">
-    import type { IUserWithRelationship } from "$lib/back/user/user.entity";
-    import type { PageData } from "./$types";
-    import SetRelationshipButtons from "$lib/components/set-relationship-buttons.svelte";
+  import type { IUserWithRelationship } from "$lib/back/user/user.entity";
+  import type { PageData } from "./$types";
+  import SetRelationshipButtons from "$lib/components/set-relationship-buttons.svelte";
 
-    export let data: PageData;
-    let isMatching = false;
-    let matchFound = false;
-    let matchDetails = null;
+  export let data: PageData;
+  let isMatching = false;
+  let matchFound = false;
+  let matchDetails = null;
 
-    async function startMatchmaking() {
-        isMatching = true;
-        matchFound = false;
-        try {
-            const response = await fetch("/api/matchmaking/start", {
-                method: "POST",
-            });
-            const result = await response.json();
-            if (result.success) {
-                matchDetails = result.match;
-                matchFound = true;
-                const gameRoomId = matchDetails.gameRoomId; // サーバーから受け取ったゲームルームID
-                setTimeout(() => (window.location.href = `/game_pong/${gameRoomId}`), 0);
-            }
-        } catch (error) {
-            console.error("Matchmaking error:", error);
-        } finally {
-            isMatching = false;
-        }
+  async function startMatchmaking() {
+    isMatching = true;
+    matchFound = false;
+    try {
+      const response = await fetch("/api/matchmaking/start", {
+        method: "POST",
+      });
+      const result = await response.json();
+      if (result.success) {
+        matchDetails = result.match;
+        matchFound = true;
+        const gameRoomId = matchDetails.gameRoomId; // サーバーから受け取ったゲームルームID
+        setTimeout(() => (window.location.href = `/game_pong/${gameRoomId}`), 0);
+      }
+    } catch (error) {
+      console.error("Matchmaking error:", error);
+    } finally {
+      isMatching = false;
     }
+  }
 
-    let user_name: string = "";
+  let user_name: string = "";
+  $: users_promise = changeValueFunc(user_name);
 
-    async function searchByName(
-        user_name: string,
-    ): Promise<IUserWithRelationship[]> {
-        if (user_name.length === 0) return [];
-        console.log(user_name);
-        const response = await fetch(
-            `/api/user/find-by-partial-name/${encodeURIComponent(user_name)}`,
-        );
-        return await response.json();
+  async function changeValueFunc(user_name: string) {
+    if (user_name.length === 0) {
+      return [];
     }
-
-    $: users_promise = searchByName(user_name);
-
-    function callbackInvalidate() {
-        user_name = "";
+    console.log(user_name);
+    const response = await fetch(`/api/user/find-by-partial-name/${encodeURIComponent(user_name)}`);
+    if (response.ok) {
+      const answer = (await response.json()) as IUserWithRelationship[];
+      const spliceIndex = answer.findIndex((value) => {
+        if (value.id === data.user?.id) return true;
+        return false;
+      });
+      if (spliceIndex >= 0) {
+        answer.splice(spliceIndex, 1);
+      }
+      return answer;
+    } else {
+      return [];
     }
+  }
+
+  function callbackInvalidate() {
+    user_name = "";
+  }
 </script>
 
 <svelte:head>
-    <title>{data.user?.displayName}'s Home</title>
+  <title>{data.user?.displayName}'s Home</title>
 </svelte:head>
 
-{#if isMatching}
+<main>
+  {#if isMatching}
     <p>マッチング中です。しばらくお待ちください...</p>
     <img src="/loli.jpg" alt="uisama" />
-{:else if matchFound}
+  {:else if matchFound}
     <p>マッチが見つかりました！ゲームがまもなく開始します。</p>
     <img src="/naki.jpeg" alt="uisaman" />
-{:else}
+  {:else}
     <button on:click={startMatchmaking}>マッチメイキングを開始</button>
-{/if}
+  {/if}
 
-<search>
+  <search>
     <label>
-        Search by user name:
-        <input type="search" bind:value={user_name} />
+      Search by user name:
+      <input type="search" bind:value={user_name} />
     </label>
-</search>
-<ul>
+  </search>
+  <ul>
     {#await users_promise then users}
-        {#each users as user}
-            {#if user.relationship !== -1}
-                <li>
-                    <a href="/user/{user.id}">{user.displayName}</a>
-                    <a href="/home/direct-message/{user.id}">
-                        Send Direct Message
-                    </a>
-                    <SetRelationshipButtons
-                        user_id={user.id}
-                        user_relationship={user.relationship}
-                        callback={callbackInvalidate}
-                    />
-                </li>
-            {/if}
-        {/each}
+      {#each users as user}
+        {#if user.relationship !== -1}
+          <li>
+            <a href="/user/{user.id}">{user.displayName}</a>
+            <a href="/home/direct-message/{user.id}"> Send Direct Message </a>
+            <SetRelationshipButtons
+              user_id={user.id}
+              user_relationship={user.relationship}
+              callback={callbackInvalidate}
+            />
+          </li>
+        {/if}
+      {/each}
     {/await}
-</ul>
+  </ul>
+</main>
+
+<style>
+  main {
+    margin-top: 1ex;
+  }
+  
+  search {
+    margin-top: 1em;
+  }
+</style>

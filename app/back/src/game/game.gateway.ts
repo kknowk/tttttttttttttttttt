@@ -131,9 +131,9 @@ export class GameGateway {
             //     this.server.to(gameRoomId).emit('gameInterrupted');
             // }, 3000);
             
-            Object.keys(gameRoom.players).forEach(clientId => {
-                this.server.to(clientId).emit('gameInterrupted');
-            });
+            // Object.keys(gameRoom.players).forEach(clientId => {
+                this.server.to(client.id).emit('gameInterrupted');
+            // });
             console.log(`wasshoy!!!!!!!!!!`);
 
             // delete this.gameRooms[gameRoomId];
