@@ -15,7 +15,7 @@ import {
   UserDetailInfo,
   UserRelationship,
 } from './user/user.entity.js';
-import { GameMatchingRequest } from './game-matching/game-matching.entity.js';
+import { GameMatchingRequest, GameRoomPair } from './game-matching/game-matching.entity.js';
 import {
   ChatLog,
   ChatRoom,
@@ -64,6 +64,7 @@ const entities: Function[] = [
   GameMatchingRequest,
   GameLog,
   Notice,
+  GameRoomPair,
 ];
 
 @Module({

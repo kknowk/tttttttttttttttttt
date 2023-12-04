@@ -18,7 +18,7 @@
   <h2>You are not logged in.</h2>
 </div>
 <div>
-  <a href="/authentication">Login</a>
+  <a href="/auth">Login</a>
 </div>
 
 <style>

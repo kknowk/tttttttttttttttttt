@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Not, Repository } from 'typeorm';
-import { GameMatchingRequest } from './game-matching.entity.js';
+import { GameMatchingRequest, GameRoomPair } from './game-matching.entity.js';
 import { UserService } from '../user/user.service.js';
 
 @Injectable()
@@ -10,11 +10,22 @@ export class GameMatchingService {
     @InjectRepository(GameMatchingRequest)
     private gameMatchingRequestRepository: Repository<GameMatchingRequest>,
     private userService: UserService,
+    @InjectRepository(GameRoomPair)
+    private gameRoomPairRepository: Repository<GameRoomPair>,
   ) {}
 
   // 変更
   private lastGameRoomId = 0;
   private lastinviteGameRoomId = 1;
+
+  // private gameRoomPairs = new Map<number, Set<number>>();
+
+  private async addPairToGameRoom(gameRoomId: number, userId1: number, userId2: number) {
+    await this.gameRoomPairRepository.save([
+      { gameRoomId, userId: userId1 },
+      { gameRoomId, userId: userId2 }
+    ]);
+  }
 
   private generateGameRoomId(): number {
     this.lastGameRoomId += 2;
@@ -64,6 +75,10 @@ export class GameMatchingService {
 
     // マッチが見つかった場合の処理
     if (existingMatch) {
+
+      // ペアリング情報を保存
+      this.addPairToGameRoom(gameRoomId, playerId, existingMatch.requester_id);
+    
       // 既存のマッチングリクエストのステータスを更新
       await this.gameMatchingRequestRepository.update(
         { id: existingMatch.id },
@@ -131,5 +146,10 @@ export class GameMatchingService {
         status: 'matched', // ステータスを 'matched' に更新
       },
     );
+  }
+
+  async checkUserAccessToGameRoom(userId: number, gameRoomId: number): Promise<boolean> {
+    const pair = await this.gameRoomPairRepository.findOne({ where: { userId, gameRoomId } });
+    return !!pair;
   }
 }

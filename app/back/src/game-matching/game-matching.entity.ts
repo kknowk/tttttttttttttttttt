@@ -1,4 +1,4 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne } from 'typeorm';
 
 export const GameRuleKind = {
     basic: 0,
@@ -40,4 +40,19 @@ export class GameMatchingRequest {
 
     @Column({ nullable: true })
     gameRoomId: number;
+}
+
+@Entity()
+export class GameRoomPair {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column()
+  gameRoomId: number;
+
+  @Column()
+  userId: number;
+
+  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  createdAt: Date;
 }

@@ -50,12 +50,12 @@
 </script>
 
 <div class="grid-container">
-  {#if data.logs && data.members?.get(data.user.id) === 2}
-    <div class="grid-main">
-      <slot />
-    </div>
-    <menu class="grid-menu">
-      <button on:click={inviteFunc}>Invite to New Game</button>
+  <div class="grid-main">
+    <slot />
+  </div>
+  <menu class="grid-menu">
+    <button on:click={inviteFunc}>Invite to New Game</button>
+    {#if data.logs && data.members?.get(data.user.id) === 2}
       {#if data.room.kind === 0}
         <a href="/chat/{data.room.id}/invite">Invite New Member</a>
       {/if}
@@ -68,58 +68,54 @@
       {#if $page.url.pathname !== `/chat/${data.room.id}`}
         <a href="/chat/{data.room.id}">Chat Room</a>
       {/if}
-    </menu>
-    {#if data.members}
-      <details class="member-list">
-        <summary>Members</summary>
-        <div>
-          {#if administrators.length > 0}
-            <p>Administrators</p>
-            <ul>
-              {#each administrators as member_id}
-                {#if member_id === data.user.id}
-                  <li>
-                    <a href="/user/{data.user.id}">{data.user.displayName}</a>
-                  </li>
-                {:else if (data.users.get(member_id)?.relationship ?? -1) >= 0}
-                  <li>
-                    <SetRelationshipButtons
-                      user_id={member_id}
-                      user_relationship={data.users.get(member_id)?.relationship ?? 0}
-                    />
-                    <a href="/user/{member_id}">{data.users.get(member_id)?.displayName}</a>
-                  </li>
-                {/if}
-              {/each}
-            </ul>
-          {/if}
-          {#if normalMembers.length > 0}
-            <p>Members</p>
-            <ul>
-              {#each normalMembers as member_id}
-                {#if member_id === data.user.id}
-                  <li>
-                    <a href="/user/{data.user.id}">{data.user.displayName}</a>
-                  </li>
-                {:else if (data.users.get(member_id)?.relationship ?? -1) >= 0}
-                  <li>
-                    <SetRelationshipButtons
-                      user_id={member_id}
-                      user_relationship={data.users.get(member_id)?.relationship ?? 0}
-                    />
-                    <a href="/user/{member_id}">{data.users.get(member_id)?.displayName}</a>
-                  </li>
-                {/if}
-              {/each}
-            </ul>
-          {/if}
-        </div>
-      </details>
     {/if}
-  {:else}
-    <div class="grid-main">
-      <slot />
-    </div>
+  </menu>
+  {#if data.members}
+    <details class="member-list">
+      <summary>Members</summary>
+      <div>
+        {#if administrators.length > 0}
+          <p>Administrators</p>
+          <ul>
+            {#each administrators as member_id}
+              {#if member_id === data.user.id}
+                <li>
+                  <a href="/user/{data.user.id}">{data.user.displayName}</a>
+                </li>
+              {:else if (data.users.get(member_id)?.relationship ?? -1) >= 0}
+                <li>
+                  <SetRelationshipButtons
+                    user_id={member_id}
+                    user_relationship={data.users.get(member_id)?.relationship ?? 0}
+                  />
+                  <a href="/user/{member_id}">{data.users.get(member_id)?.displayName}</a>
+                </li>
+              {/if}
+            {/each}
+          </ul>
+        {/if}
+        {#if normalMembers.length > 0}
+          <p>Members</p>
+          <ul>
+            {#each normalMembers as member_id}
+              {#if member_id === data.user.id}
+                <li>
+                  <a href="/user/{data.user.id}">{data.user.displayName}</a>
+                </li>
+              {:else if (data.users.get(member_id)?.relationship ?? -1) >= 0}
+                <li>
+                  <SetRelationshipButtons
+                    user_id={member_id}
+                    user_relationship={data.users.get(member_id)?.relationship ?? 0}
+                  />
+                  <a href="/user/{member_id}">{data.users.get(member_id)?.displayName}</a>
+                </li>
+              {/if}
+            {/each}
+          </ul>
+        {/if}
+      </div>
+    </details>
   {/if}
 </div>
 
