@@ -15,6 +15,7 @@ export async function load(ev: PageServerLoadEvent) {
   }
 
   const user_id = parent.user.id;
+  console.log("Game Room Id: " + ev.params.gameRoomId);
   const gameRoomId = parseInt(ev.params.gameRoomId);
   const isAllowed = await services.gameMatchingService.checkUserAccessToGameRoom(user_id, gameRoomId);
 

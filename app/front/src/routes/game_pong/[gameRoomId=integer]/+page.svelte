@@ -21,6 +21,8 @@
     let isWinner = false;
     let isDisconnect = false;
 
+    let timer: number | undefined; // タイマーを保持するための変数
+
     interface PlayerState {
         paddleY: number;
         score: number; // スコアを追加
@@ -63,9 +65,9 @@
         const { io } = await import("socket.io-client");
         const gameRoomId = $page.params.gameRoomId;
 
-        // // リロードを検出するためのフラグを設定
-        // const reloaded = localStorage.getItem("reloaded");
-        // localStorage.setItem("reloaded", "true");
+        timer = setTimeout(() => {
+            window.location.href = "/home";
+        }, 120000); // 120000ミリ秒 = 2分
 
         // ゲームルームIDを使用してソケット接続を確立
         socket = io(`https://vps.doche.io:30759`, {
@@ -95,7 +97,7 @@
             // alert("Connection lost. Redirecting to home.");
             // 3秒後にホーム画面にリダイレクト
             setTimeout(() => {
-            window.location.href = "/home";
+                window.location.href = "/home";
             }, 3000);
         });
 
@@ -112,6 +114,8 @@
 
         socket.on("startGame", () => {
             // ゲーム開始のロジック
+
+            clearTimeout(timer); // タイマーをキャンセル
             gameLoop();
         });
     });
