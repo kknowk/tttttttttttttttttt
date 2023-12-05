@@ -43,9 +43,17 @@
       body: JSON.stringify(invitees),
     });
     if (response.ok) {
-      const gameRoomId = (await response.json()) as number;
+      const { gameRoomId } = await response.json();
       await goto(`/game_pong/${gameRoomId}`, { invalidateAll: true });
     }
+  }
+
+  async function leaveFunc() {
+    await fetch(`/api/chat-room/${data.room.id}`, {
+      method: "POST",
+      body: `[${data.user.id}]`,
+    });
+    await goto("/home", { invalidateAll: true });
   }
 </script>
 
@@ -53,69 +61,73 @@
   <div class="grid-main">
     <slot />
   </div>
-  <menu class="grid-menu">
-    <button on:click={inviteFunc}>Invite to New Game</button>
-    {#if data.logs && data.members?.get(data.user.id) === 2}
-      {#if data.room.kind === 0}
-        <a href="/chat/{data.room.id}/invite">Invite New Member</a>
+  {#if data.logs}
+    <menu class="grid-menu">
+      <button on:click={inviteFunc}>Invite to New Game</button>
+      {#if data.members?.get(data.user.id) === 2}
+        {#if data.room.kind === 0}
+          <a href="/chat/{data.room.id}/invite">Invite New Member</a>
+        {/if}
+        <a href="/chat/{data.room.id}/kick">Kick</a>
+        <a href="/chat/{data.room.id}/mute">Mute</a>
+        <a href="/chat/{data.room.id}/ban">Ban</a>
+        {#if data.room.owner_id === data.user.id}
+          <a href="/chat/{data.room.id}/setting">Setting</a>
+        {/if}
+        {#if $page.url.pathname !== `/chat/${data.room.id}`}
+          <a href="/chat/{data.room.id}">Chat Room</a>
+        {/if}
+      {:else}
+        <button on:click={leaveFunc}>Leave</button>
       {/if}
-      <a href="/chat/{data.room.id}/kick">Kick</a>
-      <a href="/chat/{data.room.id}/mute">Mute</a>
-      <a href="/chat/{data.room.id}/ban">Ban</a>
-      {#if data.room.owner_id === data.user.id}
-        <a href="/chat/{data.room.id}/setting">Setting</a>
-      {/if}
-      {#if $page.url.pathname !== `/chat/${data.room.id}`}
-        <a href="/chat/{data.room.id}">Chat Room</a>
-      {/if}
+    </menu>
+    {#if data.members}
+      <details class="member-list">
+        <summary>Members</summary>
+        <div>
+          {#if administrators.length > 0}
+            <p>Administrators</p>
+            <ul>
+              {#each administrators as member_id}
+                {#if member_id === data.user.id}
+                  <li>
+                    <a href="/user/{data.user.id}">{data.user.displayName}</a>
+                  </li>
+                {:else if (data.users.get(member_id)?.relationship ?? -1) >= 0}
+                  <li>
+                    <SetRelationshipButtons
+                      user_id={member_id}
+                      user_relationship={data.users.get(member_id)?.relationship ?? 0}
+                    />
+                    <a href="/user/{member_id}">{data.users.get(member_id)?.displayName}</a>
+                  </li>
+                {/if}
+              {/each}
+            </ul>
+          {/if}
+          {#if normalMembers.length > 0}
+            <p>Members</p>
+            <ul>
+              {#each normalMembers as member_id}
+                {#if member_id === data.user.id}
+                  <li>
+                    <a href="/user/{data.user.id}">{data.user.displayName}</a>
+                  </li>
+                {:else if (data.users.get(member_id)?.relationship ?? -1) >= 0}
+                  <li>
+                    <SetRelationshipButtons
+                      user_id={member_id}
+                      user_relationship={data.users.get(member_id)?.relationship ?? 0}
+                    />
+                    <a href="/user/{member_id}">{data.users.get(member_id)?.displayName}</a>
+                  </li>
+                {/if}
+              {/each}
+            </ul>
+          {/if}
+        </div>
+      </details>
     {/if}
-  </menu>
-  {#if data.members}
-    <details class="member-list">
-      <summary>Members</summary>
-      <div>
-        {#if administrators.length > 0}
-          <p>Administrators</p>
-          <ul>
-            {#each administrators as member_id}
-              {#if member_id === data.user.id}
-                <li>
-                  <a href="/user/{data.user.id}">{data.user.displayName}</a>
-                </li>
-              {:else if (data.users.get(member_id)?.relationship ?? -1) >= 0}
-                <li>
-                  <SetRelationshipButtons
-                    user_id={member_id}
-                    user_relationship={data.users.get(member_id)?.relationship ?? 0}
-                  />
-                  <a href="/user/{member_id}">{data.users.get(member_id)?.displayName}</a>
-                </li>
-              {/if}
-            {/each}
-          </ul>
-        {/if}
-        {#if normalMembers.length > 0}
-          <p>Members</p>
-          <ul>
-            {#each normalMembers as member_id}
-              {#if member_id === data.user.id}
-                <li>
-                  <a href="/user/{data.user.id}">{data.user.displayName}</a>
-                </li>
-              {:else if (data.users.get(member_id)?.relationship ?? -1) >= 0}
-                <li>
-                  <SetRelationshipButtons
-                    user_id={member_id}
-                    user_relationship={data.users.get(member_id)?.relationship ?? 0}
-                  />
-                  <a href="/user/{member_id}">{data.users.get(member_id)?.displayName}</a>
-                </li>
-              {/if}
-            {/each}
-          </ul>
-        {/if}
-      </div>
-    </details>
   {/if}
 </div>
 

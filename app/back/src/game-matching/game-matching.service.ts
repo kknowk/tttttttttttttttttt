@@ -12,7 +12,7 @@ export class GameMatchingService {
     private userService: UserService,
     @InjectRepository(GameRoomPair)
     private gameRoomPairRepository: Repository<GameRoomPair>,
-  ) {}
+  ) { }
 
   // 変更
   private lastGameRoomId = 0;
@@ -22,8 +22,14 @@ export class GameMatchingService {
 
   private async addPairToGameRoom(gameRoomId: number, userId1: number, userId2: number) {
     await this.gameRoomPairRepository.save([
-      { gameRoomId, userId: userId1 },
-      { gameRoomId, userId: userId2 }
+      { gameRoomId, userId: userId1, is_two: 0, userIds: [userId1, userId2] },
+      { gameRoomId, userId: userId2, is_two: 0, userIds: [userId1, userId2] }
+    ]);
+  }
+
+  private async addPairgroupToGameRoom(gameRoomId: number, userId1: number, userIds: number[]) {
+    await this.gameRoomPairRepository.save([
+      { gameRoomId, userId: userId1, is_two: 0, userIds: userIds },
     ]);
   }
 
@@ -48,6 +54,9 @@ export class GameMatchingService {
         requesterId,
       )}</a>`,
     );
+
+    this.addPairgroupToGameRoom(gameRoomId, requesterId, requestedIds);
+
     return { gameRoomId };
   }
 
@@ -78,7 +87,7 @@ export class GameMatchingService {
 
       // ペアリング情報を保存
       this.addPairToGameRoom(gameRoomId, playerId, existingMatch.requester_id);
-    
+
       // 既存のマッチングリクエストのステータスを更新
       await this.gameMatchingRequestRepository.update(
         { id: existingMatch.id },
@@ -150,6 +159,36 @@ export class GameMatchingService {
 
   async checkUserAccessToGameRoom(userId: number, gameRoomId: number): Promise<boolean> {
     const pair = await this.gameRoomPairRepository.findOne({ where: { userId, gameRoomId } });
+    return !!pair;
+  }
+
+  async checkGroupUserAccessToGameRoom(userId: number, gameRoomId: number): Promise<boolean> {
+
+
+    const pair = await this.gameRoomPairRepository.findOne({ where: { gameRoomId } });
+
+    if (pair) {
+      // 誘った人
+      if (pair.userId == userId) {
+        pair.is_two += 1;
+        await this.gameRoomPairRepository.save(pair);
+        return !!pair;
+      }
+
+      // それ以外
+
+      let i = 0;
+      while (pair.userIds[i]) {
+        if (pair.userIds[i] == userId && pair.is_two < 2) {
+          pair.is_two += 1;
+          // console.log(`pair.is_two: ${pair.is_two}`)
+          await this.gameRoomPairRepository.save(pair);
+          return !!pair;
+        }
+        i++;
+      }
+      return !pair;
+    }
     return !!pair;
   }
 }

@@ -53,6 +53,12 @@ export class GameRoomPair {
   @Column()
   userId: number;
 
+  @Column("int", { array: true })
+  userIds: number[];
+
+  @Column()
+  is_two: number;
+
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   createdAt: Date;
 }
