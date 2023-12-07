@@ -37,6 +37,18 @@
         formData.set("user-2fa", "off");
       }
     }
+    {
+      const userIcon = formData.get("user-icon")?.valueOf();
+      if (
+        userIcon instanceof File &&
+        userIcon.type === "image/png" &&
+        userIcon.size > 0 &&
+        userIcon.size < 2 * 1024 * 1024
+      ) {
+      } else {
+        formData.delete("user-icon");
+      }
+    }
     await fetch("/api/user/change-settings", {
       method: "POST",
       body: formData,
@@ -46,11 +58,11 @@
 </script>
 
 <form on:submit={submitFunction} class="grid-container">
-  <label for="user-name"> Name: </label>
+  <label for="user-name">Name</label>
   <input id="user-name" type="text" name="user-name" value={data.user.displayName} />
-  <label for="user-email"> Email: </label>
+  <label for="user-email">Email</label>
   <input id="user-email" type="email" name="user-email" value={data.email ?? ""} />
-  <label for="2fa">2 Factor Auth:</label>
+  <label for="2fa">2 Factor Auth</label>
   <label class="toggle-switch">
     <input
       id="2fa"
@@ -59,6 +71,8 @@
       checked={data.user.two_factor_authentication_required}
     />
   </label>
+  <label for="user-icon">Icon{"("}400×400px png {"<"}2MB file{")"}</label>
+  <input id="user-icon" type="file" name="user-icon" accept=".png,image/png" />
   <input type="submit" value="Change" />
 </form>
 

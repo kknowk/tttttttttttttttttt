@@ -65,6 +65,10 @@ export class AuthController {
     if (!(await this.authSerivce.update_jwt(user, res))) {
       return;
     }
+    if ('new' in user && user.new === true) {
+      res.redirect(307, '/home/setting');
+      return;
+    }
     if (
       user.two_factor_authentication_required &&
       !user.is_two_factor_authenticated

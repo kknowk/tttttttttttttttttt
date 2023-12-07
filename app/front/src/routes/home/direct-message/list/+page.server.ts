@@ -25,6 +25,12 @@ export async function load(ev: PageServerLoadEvent) {
   rooms.sort((a, b) => {
     return a.last_log_id < b.last_log_id ? 1 : a.last_log_id === b.last_log_id ? 0 : -1;
   });
+  for (let index = rooms.length; index-- > 0; ) {
+    const room = rooms[index];
+    if (room.last_log_id <= room.hide_log_id) {
+      rooms.splice(index, 1);
+    }
+  }
   return {
     user: parent.user,
     rooms: rooms,

@@ -1,46 +1,42 @@
 import {
   BadRequestException,
+  NotFoundException,
+  UnauthorizedException,
+  InternalServerErrorException,
   Controller,
   Get,
   Param,
   Post,
   Req,
-  Res,
   UseGuards,
-  NotFoundException,
   ParseIntPipe,
   UseInterceptors,
   Body,
-  UploadedFiles,
+  UploadedFile,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { FileFieldsInterceptor } from '@nestjs/platform-express';
+import { FileInterceptor } from '@nestjs/platform-express';
 import type { Request, Response } from 'express';
 import {
   IUser,
   UserRelationshipKind,
-  fromAvatarFileKindToMimeType,
   fromStringToUserRelationshipKind,
 } from './user.entity.js';
 import { ConfigService } from '@nestjs/config';
 import { UserService } from './user.service.js';
 import { join } from 'path';
 import { createIRangeRequestWithUserFromURLSearchParams } from '../utility/range-request.js';
-import { diskStorage } from 'multer';
 import { JwtUpdateInterceptor } from '../auth/jwt.update.interceptor.js';
+import { writeFile } from 'fs/promises';
 
 @UseGuards(AuthGuard('jwt'))
 @UseInterceptors(JwtUpdateInterceptor)
 @Controller('api/user')
 export class ApiUserController {
   constructor(
-    configService: ConfigService,
+    private configService: ConfigService,
     private userService: UserService,
-  ) {
-    this.#avatar_path = configService.get('AVATAR_IMAGE_PATH');
-  }
-
-  #avatar_path: string;
+  ) {}
 
   @Get('name/:id')
   async get_name(
@@ -76,28 +72,6 @@ export class ApiUserController {
     if (relationship <= UserRelationshipKind.banned)
       throw new NotFoundException();
     return target_user;
-  }
-
-  @Get('avatar/:id')
-  async get_avatar(
-    @Req() req: Request,
-    @Param('id', ParseIntPipe) id: number,
-    @Res({ passthrough: true }) res: Response,
-  ) {
-    const user = req.user as IUser;
-    if (user.id !== id) {
-      const relationship = await this.userService.get_lowest_relationship(
-        user.id,
-        id,
-      );
-      if (relationship < UserRelationshipKind.stranger) {
-        res.status(403);
-        return;
-      }
-    }
-    const avatar_kind = await this.userService.get_avatar_kind(id);
-    res.contentType(fromAvatarFileKindToMimeType(avatar_kind));
-    res.sendFile(join(this.#avatar_path, id.toString()));
   }
 
   @Get('find-by-partial-name/:name')
@@ -177,29 +151,11 @@ export class ApiUserController {
 
   @Post('change-settings')
   @UseInterceptors(
-    FileFieldsInterceptor(
-      [
-        {
-          name: 'avatar',
-          maxCount: 1,
-        },
-      ],
-      {
-        storage: diskStorage({
-          destination: (req, file, callback) => {
-            callback(null, 'static-uploads');
-          },
-          filename: (req, file, callback) => {
-            const user = req.user as IUser;
-            const lastIndex = file.originalname.lastIndexOf('.');
-            callback(
-              null,
-              `${user.id}.${file.originalname.slice(lastIndex + 1)}`,
-            );
-          },
-        }),
+    FileInterceptor('user-icon', {
+      limits: {
+        fileSize: 2 * 1024 * 1024,
       },
-    ),
+    }),
   )
   async change_settings(
     @Req() req: Request,
@@ -209,9 +165,31 @@ export class ApiUserController {
       ['user-email']?: string;
       ['user-2fa']?: 'on' | 'off';
     },
-    @UploadedFiles() files: Express.Multer.File[] | undefined | null,
+    @UploadedFile() file: Express.Multer.File | undefined | null,
   ) {
     const user = req.user as IUser;
+    if (file != null) {
+      if (file.mimetype !== 'image/png') {
+        throw new BadRequestException('user-icon must be image/png');
+      }
+      if (file.size === 0 || file.size > 2 * 1024 * 1024) {
+        throw new BadRequestException('user-icon must be in range.');
+      }
+      if (!(await this.userService.isValidPngFile(file.buffer))) {
+        throw new BadRequestException('invalid file');
+      }
+      try {
+        await writeFile(
+          join(this.configService.get('ICON_PATH'), `${user.id}.png`),
+          file.buffer,
+          {
+            encoding: 'binary',
+          },
+        );
+      } catch (error) {
+        throw new InternalServerErrorException(error);
+      }
+    }
     const promises = [] as Promise<any>[];
     const name = body['user-name'];
     if (name != null) {
@@ -233,5 +211,52 @@ export class ApiUserController {
     if (promises.length > 0) {
       await Promise.all(promises);
     }
+  }
+
+  @Get('game-result-counts/:user_id')
+  async get_game_result_counts(
+    @Req() req: Request,
+    @Param('id', ParseIntPipe) user_id: number,
+  ) {
+    const user = req.user as IUser;
+    if (!(await this.userService.get_existence(user_id))) {
+      throw new NotFoundException();
+    }
+    const relationship = await this.userService.get_lowest_relationship(
+      user.id,
+      user_id,
+    );
+    if (relationship === UserRelationshipKind.banned) {
+      throw new UnauthorizedException();
+    }
+    const result = await this.userService.get_game_result_counts(user_id);
+    return result;
+  }
+
+  @Get('game-logs/:user_id')
+  async get_game_logs(
+    @Req() req: Request,
+    @Param('id', ParseIntPipe) user_id: number,
+  ) {
+    const user = req.user as IUser;
+    if (!(await this.userService.get_existence(user_id))) {
+      throw new NotFoundException();
+    }
+    const relationship = await this.userService.get_lowest_relationship(
+      user.id,
+      user_id,
+    );
+    if (relationship === UserRelationshipKind.banned) {
+      throw new UnauthorizedException();
+    }
+    const url = new URL(req.url, `https://${req.headers.host}`);
+    const rangeRequest = createIRangeRequestWithUserFromURLSearchParams(
+      user_id,
+      url.searchParams,
+      50,
+      true,
+    );
+    const result = await this.userService.get_game_logs(rangeRequest);
+    return result;
   }
 }

@@ -34,19 +34,26 @@ export class DirectMessageRoomService {
 
   async get_logs(
     room_id: number,
-    request: IRangeRequest,
+    rangeRequest: IRangeRequestWithUserId,
   ): Promise<IDirectMessageLog[]> {
+    const hide_log_id = await this.get_hide_log_id(
+      room_id,
+      rangeRequest.user_id,
+    );
     let query = this.logRepository
-      .createQueryBuilder()
-      .select('id', 'id')
-      .addSelect('room_id', 'room_id')
-      .addSelect('member_id', 'member_id')
-      .addSelect('content', 'content')
-      .addSelect('date', 'date')
-      .addSelect('is_html', 'is_html')
-      .where('room_id=:room_id', { room_id });
-    query = addWhereCondition(request, query, 'id', true);
-    query = addOrderAndLimit(request, query, 'id');
+      .createQueryBuilder('l')
+      .select('l.id', 'id')
+      .addSelect('l.room_id', 'room_id')
+      .addSelect('l.member_id', 'member_id')
+      .addSelect('l.content', 'content')
+      .addSelect('l.date', 'date')
+      .addSelect('l.is_html', 'is_html')
+      .where('l.room_id=:room_id AND l.id > :hide_log_id', {
+        room_id,
+        hide_log_id,
+      });
+    query = addWhereCondition(rangeRequest, query, 'id', true);
+    query = addOrderAndLimit(rangeRequest, query, 'id');
     const answer = await query.getRawMany();
     return answer;
   }
@@ -57,6 +64,7 @@ export class DirectMessageRoomService {
       counterpart_id: number;
       counterpart_name: string;
       last_log_id: number;
+      hide_log_id: number;
     }[]
   > {
     const relationship_query0 = this.relationshipRepository
@@ -83,14 +91,17 @@ export class DirectMessageRoomService {
       .addSelect('b.user_id', 'counterpart_id')
       .addSelect('u.displayName', 'counterpart_name')
       .addSelect('max(l.id) OVER (PARTITION BY l.room_id)', 'last_log_id')
+      .addSelect('a.hide_log_id', 'hide_log_id')
       .distinctOn(['room_id'])
       .innerJoin(DirectMessageRoomMembership, 'b', 'a.room_id=b.room_id')
       .innerJoin(User, 'u', 'u.id=b.user_id')
       .innerJoin(DirectMessageLog, 'l', 'l.room_id=b.room_id')
-      .where('a.user_id = :requester_id')
-      .andWhere('b.user_id <> :requester_id')
-      .andWhere('NOT EXISTS (SELECT 1 FROM r0 WHERE r0.id=b.user_id)')
-      .andWhere('NOT EXISTS (SELECT 1 FROM r1 WHERE r1.id=b.user_id)');
+      .where(
+        'a.user_id = :requester_id AND b.user_id <> :requester_id' +
+          ' AND NOT EXISTS (SELECT 1 FROM r0 WHERE r0.id=b.user_id)' +
+          ' AND NOT EXISTS (SELECT 1 FROM r1 WHERE r1.id=b.user_id)',
+        { requester_id: request.user_id },
+      );
     query = addWhereCondition(request, query, 'a.room_id', true);
     query = addOrderAndLimit(request, query, 'a.room_id');
     const result = await query.getRawMany();
@@ -291,5 +302,32 @@ export class DirectMessageRoomService {
     } finally {
       await runner.release();
     }
+  }
+
+  async get_hide_log_id(requester_id: number, room_id: number) {
+    const query = this.membershipRepository
+      .createQueryBuilder()
+      .select('hide_log_id', 'hide_log_id')
+      .where('room_id=:room_id AND user_id=:requester_id', {
+        room_id,
+        requester_id,
+      });
+    const result = await query.getRawOne();
+    if (result == null) {
+      return -1;
+    }
+    return result.hide_log_id;
+  }
+
+  async set_hide_log_id(requester_id: number, room_id: number, log_id: number) {
+    await this.membershipRepository.update(
+      {
+        user_id: requester_id,
+        room_id: room_id,
+      },
+      {
+        hide_log_id: log_id,
+      },
+    );
   }
 }

@@ -2,3 +2,4 @@
 .vscode/
 certs
 node_modules
+.env

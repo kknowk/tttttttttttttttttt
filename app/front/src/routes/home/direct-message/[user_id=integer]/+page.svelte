@@ -143,6 +143,21 @@
       await goto(`/game_pong/${gameRoomId}`, { invalidateAll: true });
     }
   }
+
+  async function hideFunc() {
+    if (data.room == null) {
+      return;
+    }
+    if (logs == null || logs.length === 0) {
+      return;
+    }
+    const response = await fetch(`/api/direct-message-room/hide/${data.room.id}/${logs[0].id}`, {
+      method: "POST",
+    });
+    if (response.ok) {
+      await goto("/home", { invalidateAll: true });
+    }
+  }
 </script>
 
 <svelte:head>
@@ -183,6 +198,7 @@
       user_relationship={1}
       callback={relationshipCallback}
     />
+    <button on:click={hideFunc}>Hide This Direct Messages</button>
   </menu>
 </div>
 
@@ -202,7 +218,7 @@
       top: 0;
       height: 100vh;
       display: grid;
-      grid-template-rows: 2fr 1fr 1fr;
+      grid-template-rows: 2fr 1fr 1fr 1fr;
       background-color: blanchedalmond;
 
       & button {

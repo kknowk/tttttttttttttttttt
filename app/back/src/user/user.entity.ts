@@ -181,44 +181,6 @@ export class UserRelationship {
   relationship: UserRelationshipKind;
 }
 
-export const UserAvatarFileKind = {
-  jpeg: 0,
-  jpegxl: 1,
-  png: 2,
-} as const;
-export type UserAvatarFileKind =
-  (typeof UserAvatarFileKind)[keyof typeof UserAvatarFileKind];
-
-export function fromMimeTypeToUserAvatarFileKind(
-  type?: string,
-): UserAvatarFileKind | null {
-  switch (type) {
-    case 'image/jxl':
-      return UserAvatarFileKind.png;
-    case 'image/jpeg':
-      return UserAvatarFileKind.jpeg;
-    case 'image/png':
-      return UserAvatarFileKind.png;
-    default:
-      return null;
-  }
-}
-
-export function fromAvatarFileKindToMimeType(
-  kind?: UserAvatarFileKind,
-): string | null {
-  switch (kind) {
-    case UserAvatarFileKind.jpeg:
-      return 'image/jpeg';
-    case UserAvatarFileKind.jpegxl:
-      return 'image/jxl';
-    case UserAvatarFileKind.png:
-      return 'image/png';
-    default:
-      return null;
-  }
-}
-
 @Entity()
 export class UserDetailInfo {
   @PrimaryColumn()
@@ -235,12 +197,6 @@ export class UserDetailInfo {
     type: 'varchar',
   })
   email: string;
-
-  @Column({
-    type: 'int',
-    default: 0,
-  })
-  avatar_kind: UserAvatarFileKind;
 }
 
 export type IUserWithRelationship = {

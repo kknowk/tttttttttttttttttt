@@ -60,6 +60,12 @@ export class DirectMessageRoomMembership {
   })
   @Index()
   user_id: number;
+
+  @Column({
+    type: 'int',
+    default: -1,
+  })
+  hide_log_id: number;
 }
 
 @Entity()

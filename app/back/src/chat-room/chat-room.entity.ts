@@ -155,7 +155,8 @@ export class ChatLog {
   content: string;
 
   @Column({
-    type: 'int8',
+    type: 'int',
+    default: 0,
     comment: 'utc seconds',
   })
   date: number;
@@ -168,5 +169,5 @@ export class ChatLog {
 }
 
 export type IChatLog = {
-  [K in keyof Omit<ChatLog, 'room_id'>]: ChatLog[K]
-}
+  [K in keyof Omit<ChatLog, 'room_id'>]: ChatLog[K];
+};

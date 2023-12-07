@@ -47,16 +47,25 @@ export class GameRoomPair {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
+  @Column({
+    type: 'int',
+    default: 0,
+  })
   gameRoomId: number;
 
-  @Column()
+  @Column({
+    type: 'int',
+    default: 0,
+  })
   userId: number;
 
   @Column("int", { array: true })
   userIds: number[];
 
-  @Column()
+  @Column({
+    type: 'int',
+    default: 0,
+  })
   is_two: number;
 
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })

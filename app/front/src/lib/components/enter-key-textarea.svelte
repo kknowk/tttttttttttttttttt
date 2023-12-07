@@ -55,33 +55,12 @@
 
     & button {
       display: block;
-      color: unset;
-      text-align: center;
       align-items: flex-start;
-      cursor: pointer;
-      background-color: unset;
-      margin: unset;
-      padding: unset;
       padding-top: 1ex;
       padding-bottom: 1ex;
       border: unset;
       width: 100%;
       background-color: lavenderblush;
-      font-style: unset;
-      font-variant-ligatures: unset;
-      font-variant-caps: unset;
-      font-variant-numeric: unset;
-      font-variant-east-asian: unset;
-      font-variant-alternates: unset;
-      font-variant-position: unset;
-      font-weight: unset;
-      font-stretch: unset;
-      font-size: unset;
-      font-family: unset;
-      font-optical-sizing: unset;
-      font-kerning: unset;
-      font-feature-settings: unset;
-      font-variation-settings: unset;
     }
   }
 </style>

@@ -1,6 +1,6 @@
-import { getOriginalRequest } from '$lib/helpers';
-import { error, redirect } from '@sveltejs/kit';
-import type { PageServerLoadEvent } from './$types';
+import { createIRangeRequestWithUserFromURLSearchParams, getOriginalRequest } from "$lib/helpers";
+import { error, redirect } from "@sveltejs/kit";
+import type { PageServerLoadEvent } from "./$types";
 
 export async function load(ev: PageServerLoadEvent) {
   const parent = await ev.parent();
@@ -9,7 +9,7 @@ export async function load(ev: PageServerLoadEvent) {
     throw error(403);
   }
   if (parent.user.id === user_id) {
-    throw redirect(307, '/home/setting');
+    throw redirect(307, "/home/setting");
   }
   const services = getOriginalRequest(ev)?.services;
   if (services == null) {
@@ -23,8 +23,17 @@ export async function load(ev: PageServerLoadEvent) {
   if (relationship < 0) {
     throw error(404);
   }
+  const { win, lose } = await services.userService.get_game_result_counts(user_id);
+  const rangeRequest = createIRangeRequestWithUserFromURLSearchParams(user_id, ev.url.searchParams, 50, false);
+  if (rangeRequest === null) {
+    throw error(400, 'invalid range request');
+  }
+  const logs = await services.userService.get_game_logs(rangeRequest);
   return {
     user,
     relationship,
+    win,
+    lose,
+    logs,
   };
 }

@@ -73,11 +73,7 @@ export class ChatRoomService {
       .where('member_id = :id', { id: rangeRequest.user_id });
     let query = this.roomRepository
       .createQueryBuilder('cr')
-      .addCommonTableExpression(
-        memberships,
-        'memberships',
-        this.#cteOptions_id,
-      )
+      .addCommonTableExpression(memberships, 'memberships', this.#cteOptions_id)
       .select('cr.id', 'id')
       .addSelect('cr.kind', 'kind')
       .addSelect('cr.name', 'name')
@@ -245,7 +241,11 @@ export class ChatRoomService {
         { room_id, request_target_ids },
       );
     const _ = await query.execute();
-    if (request_target_ids.length > 0) {
+    if (
+      request_target_ids.length > 0 &&
+      (request_target_ids.length !== 1 ||
+        request_target_ids[0] !== requester_id)
+    ) {
       await this.userService.notify(
         request_target_ids,
         `Kicked out from <a href="/chat/${room_id}">${await this.get_room_name(

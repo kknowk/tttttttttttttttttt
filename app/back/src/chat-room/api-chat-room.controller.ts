@@ -11,6 +11,7 @@ import {
   ParseIntPipe,
   PayloadTooLargeException,
   UseInterceptors,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import type { Request } from 'express';
@@ -19,6 +20,7 @@ import { ChatRoomService } from './chat-room.service.js';
 import { JsonPipe } from '../custom-pipe/json-pipe.js';
 import { createIRangeRequestWithUserFromURLSearchParams } from '../utility/range-request.js';
 import { JwtUpdateInterceptor } from '../auth/jwt.update.interceptor.js';
+import { ChatRoomMembershipKind } from './chat-room.entity.js';
 
 @UseGuards(AuthGuard('jwt'))
 @UseInterceptors(JwtUpdateInterceptor)
@@ -214,7 +216,22 @@ export class ApiChatRoomController {
     @Param('room_id', ParseIntPipe) room_id: number,
     @Body(JsonPipe) body: number[],
   ) {
+    if (body.length === 0) {
+      throw new BadRequestException();
+    }
     const user = req.user as IUser;
+    const membership = await this.chatRoomService.get_membership(
+      room_id,
+      user.id,
+    );
+    if (membership == null) {
+      throw new UnauthorizedException();
+    }
+    if (membership.kind !== ChatRoomMembershipKind.administrator) {
+      if (body.length !== 1 || body[0] !== user.id) {
+        throw new UnauthorizedException();
+      }
+    }
     return await this.chatRoomService.kick_memberships(room_id, user.id, body);
   }
 

@@ -12,7 +12,7 @@ export class GameMatchingService {
     private userService: UserService,
     @InjectRepository(GameRoomPair)
     private gameRoomPairRepository: Repository<GameRoomPair>,
-  ) { }
+  ) {}
 
   // 変更
   private lastGameRoomId = 0;
@@ -20,14 +20,22 @@ export class GameMatchingService {
 
   // private gameRoomPairs = new Map<number, Set<number>>();
 
-  private async addPairToGameRoom(gameRoomId: number, userId1: number, userId2: number) {
+  private async addPairToGameRoom(
+    gameRoomId: number,
+    userId1: number,
+    userId2: number,
+  ) {
     await this.gameRoomPairRepository.save([
       { gameRoomId, userId: userId1, is_two: 0, userIds: [userId1, userId2] },
-      { gameRoomId, userId: userId2, is_two: 0, userIds: [userId1, userId2] }
+      { gameRoomId, userId: userId2, is_two: 0, userIds: [userId1, userId2] },
     ]);
   }
 
-  private async addPairgroupToGameRoom(gameRoomId: number, userId1: number, userIds: number[]) {
+  private async addPairgroupToGameRoom(
+    gameRoomId: number,
+    userId1: number,
+    userIds: number[],
+  ) {
     await this.gameRoomPairRepository.save([
       { gameRoomId, userId: userId1, is_two: 0, userIds: userIds },
     ]);
@@ -84,7 +92,6 @@ export class GameMatchingService {
 
     // マッチが見つかった場合の処理
     if (existingMatch) {
-
       // ペアリング情報を保存
       this.addPairToGameRoom(gameRoomId, playerId, existingMatch.requester_id);
 
@@ -157,16 +164,26 @@ export class GameMatchingService {
     );
   }
 
-  async checkUserAccessToGameRoom(userId: number, gameRoomId: number): Promise<boolean> {
-    const pair = await this.gameRoomPairRepository.findOne({ where: { userId, gameRoomId } });
+  async checkUserAccessToGameRoom(
+    userId: number,
+    gameRoomId: number,
+  ): Promise<boolean> {
+    const pair = await this.gameRoomPairRepository.findOne({
+      where: { userId, gameRoomId },
+    });
+    console.log('checkUserAccessToGameRoom: ' + JSON.stringify(pair));
     return !!pair;
   }
 
-  async checkGroupUserAccessToGameRoom(userId: number, gameRoomId: number): Promise<boolean> {
+  async checkGroupUserAccessToGameRoom(
+    userId: number,
+    gameRoomId: number,
+  ): Promise<boolean> {
+    const pair = await this.gameRoomPairRepository.findOne({
+      where: { gameRoomId },
+    });
 
-
-    const pair = await this.gameRoomPairRepository.findOne({ where: { gameRoomId } });
-
+    console.log('checkGroupUserAccessToGameRoom: ' + JSON.stringify(pair));
     if (pair) {
       // 誘った人
       if (pair.userId == userId) {

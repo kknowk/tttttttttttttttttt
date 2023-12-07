@@ -119,4 +119,18 @@ export class ApiDirectMessageRoomController {
     }
     return await this.directMessageRoomService.get_logs(room_id, rangeRequest);
   }
+
+  @Post('hide/:room_id/:log_id')
+  async hide(
+    @Req() req: Request,
+    @Param('room_id', ParseIntPipe) room_id: number,
+    @Param('log_id', ParseIntPipe) log_id: number,
+  ) {
+    const user = req.user as IUser;
+    await this.directMessageRoomService.set_hide_log_id(
+      user.id,
+      room_id,
+      log_id,
+    );
+  }
 }

@@ -5,6 +5,7 @@ import { Socket } from 'socket.io';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { GameLog } from './game.entity.js';
+import { ConfigService } from '@nestjs/config';
 
 interface PlayerState {
     paddleY: number;
@@ -46,15 +47,24 @@ const MAX_SPEED = 10;
 // 最大角度の範囲（ラジアン）
 const ANGLE_RANGE = Math.PI / 8;
 
+
 @WebSocketGateway()
 export class GameGateway {
     @WebSocketServer()
     server;
 
+    private sc;
     constructor(
         @InjectRepository(GameLog)
         private gameLogRepository: Repository<GameLog>,
-    ) { }
+        configService: ConfigService,
+    ) {
+        this.sc = parseInt(configService.get('GAME_SCORE'), 10);
+        if (isNaN(this.sc)) {
+            // 数値に変換できない場合の処理
+            console.error('GAME_SCORE is not a valid number');
+        }
+    }
 
 
     // GameLog のデータをコンソールに出力するメソッド
@@ -130,16 +140,18 @@ export class GameGateway {
             // setTimeout(() => {
             //     this.server.to(gameRoomId).emit('gameInterrupted');
             // }, 3000);
-            
+
             // Object.keys(gameRoom.players).forEach(clientId => {
-                this.server.to(client.id).emit('gameInterrupted');
+            this.server.to(client.id).emit('gameInterrupted');
             // });
             console.log(`wasshoy!!!!!!!!!!`);
 
             // delete this.gameRooms[gameRoomId];
             return;
         }
-        gameRoom.players[client.id] = { paddleY: 300, ready: false, position, name, score: 5 , userId};
+        
+        
+        gameRoom.players[client.id] = { paddleY: 300, ready: false, position, name, score: this.sc, userId };
     }
 
     @SubscribeMessage('playerReady')
@@ -166,7 +178,7 @@ export class GameGateway {
     @SubscribeMessage('movePaddle')
     handleMovePaddle(@MessageBody() data: { paddleY: number }, @ConnectedSocket() client: Socket) {
         const gameRoomId = client.handshake.query.gameRoomId as string;
-        
+
         const gameRoom = this.gameRooms[gameRoomId];
 
         if (!gameRoom || !gameRoom.gameStarted)
@@ -182,7 +194,7 @@ export class GameGateway {
         if (Object.values(gameRoom.players).every(player => player.ready)) {
             gameRoom.gameStarted = true;
 
-                
+
             this.server.emit('startGame', { gameRoomId });
             gameRoom.gameInterval = setInterval(() => {
                 this.updateGameState(gameRoomId);
@@ -235,11 +247,18 @@ export class GameGateway {
                     } else {
                         angle = (3 * Math.PI / 4) - angleOffset; // 右のパドルでは反射角を調整
                     }
-
                     // 速度ベクトルの計算
                     let speed = Math.sqrt(gameRoom.ball.dx * gameRoom.ball.dx + gameRoom.ball.dy * gameRoom.ball.dy);
                     gameRoom.ball.dx = speed * Math.cos(angle);
-                    gameRoom.ball.dy = -speed * Math.sin(angle); // -sin() で上方向に反射
+                    // ボールが上から来た場合は下に、下から来た場合は上に反射
+                    if (gameRoom.ball.dy < 0) {
+                        // ボールが上から来ている場合、下に反射
+                        gameRoom.ball.dy = -speed * Math.sin(angle);
+                    } else {
+                        // ボールが下から来ている場合、上に反射
+                        gameRoom.ball.dy = speed * Math.sin(angle);
+                    }
+
 
                     // ボールの速度を増加
                     gameRoom.ball.dx *= SPEED_INCREASE_FACTOR;
