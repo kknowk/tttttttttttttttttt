@@ -31,26 +31,34 @@
   </div>
   <main class="grid-main">
     <span>Name: {data.user.displayName}</span>
+    <div>
+      <img
+        src="/api/user/icon/{data.user.id}"
+        alt="icon of {data.user.id}"
+        width="400"
+        height="400"
+        crossorigin="use-credentials"
+        decoding="async"
+        loading="lazy"
+      />
+    </div>
     <SetRelationshipButtons
       user_id={data.user.id}
       user_relationship={data.relationship}
       callback={relationshipCallback}
+      --set-relationship-buttons-div-display="block"
     />
     <div>
-      <p>Win: {data.win}</p>
-      <p>Lose: {data.lose}</p>
-    </div>
-    <div>
-      <h2>History</h2>
+      <h2>History - Win: {data.win} Lose: {data.lose}</h2>
       {#each data.logs as log}
         <div class="log-{log.win ? 'win' : 'lose'}">
-          <p>Result: {log.win ? "win" : "lose"}</p>
-          <p><a href="/user/{log.id.toString()}">Opponent: {log.name}</a></p>
           <p>
-            <time title={new Date(log.date * 1000).toLocaleString()}>
+            Result: {log.win ? "win" : "lose"}
+            {"("}<time title={new Date(log.date * 1000).toLocaleString()}>
               {showTimeDiff(log.date, now)}
-            </time>
+            </time>{")"}
           </p>
+          <p><a href="/user/{log.id.toString()}">Opponent: {log.name}</a></p>
         </div>
       {/each}
     </div>
@@ -67,5 +75,25 @@
   .grid-main {
     padding-top: 1ex;
     padding-left: 0.5em;
+  }
+
+  .log-win {
+    background-color: aqua;
+    padding: 1ex;
+
+    & a {
+      text-decoration: none;
+    }
+  }
+
+  .log-lose {
+    background-color: black;
+    color: white;
+    padding: 1ex;
+
+    & a {
+      text-decoration: none;
+      color: white;
+    }
   }
 </style>

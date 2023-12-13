@@ -27,7 +27,7 @@ export function showTimeDiff(utcFrom: number, now: number) {
     let months = Math.ceil(diff / 2592000);
     parts[1] = 'months';
     if (months >= 12) {
-      const years = Math.ceil(months / 12);
+      const years = Math.floor(months / 12);
       months -= years * 12;
       if (months === 0) {
         parts[0] = years.toString();

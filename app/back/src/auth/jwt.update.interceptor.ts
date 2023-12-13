@@ -25,7 +25,8 @@ export class JwtUpdateInterceptor implements NestInterceptor {
     return next.handle().pipe(
       mergeMap(async (data) => {
         const host = context.switchToHttp();
-        const user = (host.getRequest() as Request).user as IUser;
+        const req = host.getRequest() as Request;
+        const user = req.user as IUser;
         const res = host.getResponse();
         user.last_activity_timestamp =
           await this.userService.update_user_activity(

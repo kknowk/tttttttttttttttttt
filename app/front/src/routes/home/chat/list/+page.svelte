@@ -107,6 +107,11 @@
         &::before {
           content: "☰ ";
           font-size: larger;
+          transition: background-color 0.2s;
+        }
+
+        &:hover::before {
+          background-color: rgba(0, 0, 0, 0.13);
         }
       }
     }

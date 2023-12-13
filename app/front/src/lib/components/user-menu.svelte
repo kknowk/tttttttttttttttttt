@@ -78,6 +78,10 @@
 </details>
 
 <style>
+  a:hover {
+    text-decoration: underline;
+  }
+
   .notice::after {
     content: " (" attr(data-count) ")";
     color: deeppink;
@@ -106,6 +110,11 @@
       cursor: pointer;
       list-style: none;
       font-size: x-large;
+      transition: background-color 0.2s;
+    }
+	
+    & summary:hover {
+      background-color: rgba(0, 0, 0, 0.13);
     }
 
     padding: 0.5em;

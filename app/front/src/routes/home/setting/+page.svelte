@@ -1,32 +1,31 @@
 <script lang="ts">
-  import { invalidateAll } from "$app/navigation";
   import type { PageData } from "./$types";
   export let data: PageData;
+  let img_count = 0;
 
   async function submitFunction(ev: SubmitEvent) {
     ev.preventDefault();
-    console.log("SUBMIT");
+    button.disabled = true;
     const formData = new FormData(ev.target as HTMLFormElement);
     {
       const userName = formData.get("user-name")?.valueOf();
-      if (
-        userName == null ||
-        typeof userName !== "string" ||
-        userName.length === 0 ||
-        userName === data.user.displayName
-      ) {
+      if (userName == null || userName === data.user.displayName) {
         formData.delete("user-name");
+      } else if (typeof userName !== "string" || userName.length === 0) {
+        showFailure();
+        return;
       }
     }
     {
       const userEmail = formData.get("user-email")?.valueOf();
       if (
         userEmail == null ||
-        typeof userEmail !== "string" ||
-        userEmail.length === 0 ||
-        userEmail === data.email
+        typeof userEmail !== "string"
       ) {
         formData.delete("user-email");
+      } else if (userEmail.length === 0 || userEmail === data.email) {
+        showFailure();
+        return;
       }
     }
     {
@@ -49,21 +48,55 @@
         formData.delete("user-icon");
       }
     }
-    await fetch("/api/user/change-settings", {
+    const response = await fetch("/api/user/change-settings", {
       method: "POST",
       body: formData,
     });
-    await invalidateAll();
+    if (response.ok) {
+      icon.src = icon.src + `?r=${img_count}`;
+      img_count++;
+      setTimeout(() => {
+        button.disabled = false;
+      }, 3000);
+      return;
+    }
+    showFailure();
   }
+
+  function showFailure() {
+    failureElem.style.display = "block";
+    setTimeout(() => {
+      failureElem.style.display = "none";
+      button.disabled = false;
+    }, 3000);
+  }
+
+  let icon: HTMLImageElement;
+  let failureElem: HTMLDivElement;
+  let button: HTMLInputElement;
 </script>
 
+<svelte:head>
+  <title>Settings for {data.user.displayName}</title>
+</svelte:head>
+
+<div bind:this={failureElem} class="failure-div">Your input is invalid.</div>
+
 <form on:submit={submitFunction} class="grid-container">
-  <label for="user-name">Name</label>
-  <input id="user-name" type="text" name="user-name" value={data.user.displayName} />
-  <label for="user-email">Email</label>
-  <input id="user-email" type="email" name="user-email" value={data.email ?? ""} />
-  <label for="2fa">2 Factor Auth</label>
-  <label class="toggle-switch">
+  <label class="has-one" for="user-name">Name</label>
+  <input
+    class="has-two"
+    id="user-name"
+    type="text"
+    name="user-name"
+    value={data.user.displayName}
+  />
+
+  <label class="has-one" for="user-email">Email</label>
+  <input class="has-two" id="user-email" type="email" name="user-email" value={data.email ?? ""} />
+
+  <label class="has-one" for="2fa">2 Factor Auth</label>
+  <label class="has-two toggle-switch">
     <input
       id="2fa"
       type="checkbox"
@@ -71,12 +104,36 @@
       checked={data.user.two_factor_authentication_required}
     />
   </label>
+
   <label for="user-icon">Icon{"("}400×400px png {"<"}2MB file{")"}</label>
+  <label for="user-icon">
+    <img
+      src="/api/user/icon/{data.user.id}"
+      alt="icon of {data.user.id}"
+      width="400"
+      height="400"
+      bind:this={icon}
+    />
+  </label>
   <input id="user-icon" type="file" name="user-icon" accept=".png,image/png" />
-  <input type="submit" value="Change" />
+
+  <input type="submit" value="Change" bind:this={button} />
 </form>
 
 <style>
+  .failure-div {
+    display: none;
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    border: 1px solid #ddd;
+    background-color: red;
+    color: white;
+    padding: 15px;
+    box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+  }
+
   form {
     margin-top: 1ex;
     margin-bottom: 0.5em;
@@ -84,15 +141,23 @@
 
   .grid-container {
     display: grid;
-    grid-template-columns: auto 1fr;
-    grid-template-rows: 1fr 1fr 1fr 1fr;
+    grid-template-columns: auto auto 1fr;
+    grid-template-rows: 1fr 1fr 1fr auto 1fr;
 
     & * {
       margin: 0.5em;
     }
 
+    & .has-one {
+      grid-column: 1 / 2;
+    }
+
+    & .has-two {
+      grid-column: 2 / 4;
+    }
+
     & input[type="submit"] {
-      grid-column: 1 / 3;
+      grid-column: 1 / 4;
     }
   }
 
@@ -139,6 +204,19 @@
 
     & input {
       display: none;
+    }
+  }
+
+  @media screen and (max-width: 959px) {
+    img {
+      width: 200px;
+      height: 200px;
+    }
+  }
+  @media screen and (max-width: 599px) {
+    img {
+      width: 50px;
+      height: 50px;
     }
   }
 </style>

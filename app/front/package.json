@@ -20,6 +20,7 @@
 	},
 	"type": "module",
 	"dependencies": {
+		"@skyway-sdk/room": "^1.6.1",
 		"socket.io-client": "^4.7.2"
 	}
 }

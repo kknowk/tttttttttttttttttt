@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { PageData } from './$types';
+  import type { PageData } from "./$types";
 
   export let data: PageData;
 
@@ -15,10 +15,10 @@
       numbers.push(parsed);
     }
     const response = await fetch(`/api/chat-room/kick/${data.room.id}`, {
-      method: 'POST',
+      method: "POST",
       body: JSON.stringify(numbers),
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
     });
     if (response.ok && data.members) {
@@ -31,7 +31,6 @@
 </script>
 
 <div class="sticky">
-  <input form="main-form" type="reset" value="Reset" />
   <input form="main-form" type="submit" value="Kick" />
 </div>
 
@@ -42,7 +41,9 @@
         <div>
           <label title={member_id.toString()}>
             <input type="checkbox" name={member_id.toString()} />
-            <span class="kind-{member_kind} rel-{data.users.get(member_id)?.relationship}">{data.users.get(member_id)?.displayName}</span>
+            <span class="kind-{member_kind} rel-{data.users.get(member_id)?.relationship}"
+              >{data.users.get(member_id)?.displayName}</span
+            >
             <a href="/user/{member_id}">(profile)</a>
           </label>
         </div>
@@ -64,5 +65,10 @@
     & div {
       margin-top: 0.5em;
     }
+  }
+
+  & input[type="submit"] {
+    background-color: azure;
+    padding: 1ex;
   }
 </style>

@@ -7,6 +7,8 @@
   import type { IChatLog } from "$lib/back/chat-room/chat-room.entity";
   import { browser } from "$app/environment";
   import { goto } from "$app/navigation";
+  import { store } from "$lib/skywaybag-store";
+  import type { IUserWithRelationship } from "$lib/back/user/user.entity";
 
   export let data: PageData;
   let logs = data.logs;
@@ -23,10 +25,39 @@
     await renewLogs(response);
   }
 
+  async function get_users(logs: IChatLog[]) {
+    if (data.users == null) {
+      return;
+    }
+    let unknown_users: number[] | null = null;
+    for (const iterator of logs) {
+      if (data.users.has(iterator.id)) {
+        continue;
+      }
+      unknown_users ??= [] as number[];
+      unknown_users.push(iterator.id);
+    }
+    if (unknown_users === null) {
+      return;
+    }
+    const response = await fetch("/api/user/users", {
+      method: "POST",
+      body: JSON.stringify(unknown_users),
+    });
+    if (!response.ok) {
+      return;
+    }
+    const users: IUserWithRelationship[] = await response.json();
+    for (const iterator of users) {
+      data.users.set(iterator.id, iterator);
+    }
+  }
+
   async function renewLogs(response: Response) {
     if (response.ok) {
       const new_logs = (await response.json()) as IChatLog[] | null;
       if (new_logs != null && new_logs.length > 0) {
+        await get_users(new_logs);
         if (logs) {
           new_logs.push(...logs);
         }
@@ -58,13 +89,29 @@
     }
   }
 
-  onMount(() => {
+  onMount(async () => {
+    console.log("skyway on mount");
+    if ($store) {
+      $store.joinRoom(data.room.id, polling);
+      return;
+    }
+    const { SkyWayBag } = await import("$lib/skyway-bag");
+    $store = await SkyWayBag.create(data.user.id);
+    if ($store) {
+      $store.joinRoom(data.room.id, polling);
+      return;
+    }
+    console.log("fallback to visibility change");
     intervalId = setInterval(polling, 60000) as unknown as number;
-    document?.addEventListener("visibilitychange", visibilityChangeHandler);
+    document.addEventListener("visibilitychange", visibilityChangeHandler);
   });
 
-  onDestroy(() => {
+  onDestroy(async () => {
     if (browser) {
+      if ($store) {
+        await $store.leaveRoom();
+        return;
+      }
       if (intervalId) {
         clearInterval(intervalId);
       }
@@ -94,12 +141,13 @@
       }?order=descending&start_exclusive=${get_start_exclusive_id()}`;
       const response = await fetch(url, option);
       await renewLogs(response);
+      $store?.send();
     } finally {
       buttonElement.disabled = false;
     }
   }
 
-  async function getHistory(): Promise<void> {
+  async function get_history(): Promise<void> {
     const url = `/api/chat-room/logs/${data.room.id}?order=descending&limit=50&end_exclusive=${
       logs![logs!.length - 1].id
     }`;
@@ -109,6 +157,7 @@
     }
     const old_logs = (await response.json()) as IChatLog[] | null;
     if (old_logs != null && old_logs.length > 0) {
+      await get_users(old_logs);
       if (logs) {
         logs.push(...old_logs);
         logs = logs;
@@ -204,7 +253,7 @@
         />
       </div>
     {/each}
-    <InfiniteScrolling disabled={infiniteDisabled} callback={getHistory} />
+    <InfiniteScrolling disabled={infiniteDisabled} callback={get_history} />
   {:else if data.room.kind === 0}
     You have been invited to {data.room.name}.
     <div>
@@ -214,7 +263,12 @@
   {:else if data.room.kind === 1}
     This {data.room.name} is a password-protected chat room.
     <form on:submit={joinProtected}>
-      <input type="password" bind:this={password_sender} minlength="8" />
+      <input
+        type="password"
+        bind:this={password_sender}
+        minlength="8"
+        autocomplete="current-password"
+      />
       <input type="submit" />
     </form>
   {:else if data.room.kind === 2}

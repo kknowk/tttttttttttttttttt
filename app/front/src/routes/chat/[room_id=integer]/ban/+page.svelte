@@ -31,7 +31,6 @@
 </script>
 
 <div class="sticky">
-  <input form="main-form" type="reset" value="Reset" />
   <input form="main-form" type="submit" value="Ban" />
 </div>
 
@@ -66,5 +65,10 @@
     & div {
       margin-top: 0.5em;
     }
+  }
+
+  input[type="submit"] {
+    background-color: azure;
+    padding: 1ex;
   }
 </style>

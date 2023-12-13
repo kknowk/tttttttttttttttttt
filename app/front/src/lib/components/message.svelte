@@ -28,8 +28,9 @@
 
 <article id="message-{message_id}" title={message_id.toString()}>
   <div>
+    <img src="/api/user/icon/{user_id}" alt="icon of user {user_id}" width="32" height="32" />
     <span>
-      Sender: <a href="/user/{user_id}">{user_name}</a>
+      <a href="/user/{user_id}">{user_name}</a>
     </span>
     <time title={date}>
       Time: {showTimeDiff(utcSeconds, now)}
@@ -45,5 +46,12 @@
 <style>
   pre {
     font-family: unset;
+  }
+
+  img {
+    display: inline;
+    border-radius: 50%;
+    border: solid;
+    margin: 5px;
   }
 </style>

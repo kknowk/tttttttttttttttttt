@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { PageData } from './$types';
+  import type { PageData } from "./$types";
 
   export let data: PageData;
 
@@ -11,9 +11,9 @@
     const formData = new FormData(ev.target);
     let endDate: number | null = null;
     for (const [key, value] of formData) {
-      if (key === 'end-date') {
+      if (key === "end-date") {
         const valueOf = value.valueOf();
-        if (typeof valueOf === 'string') {
+        if (typeof valueOf === "string") {
           endDate = Math.floor(new Date(valueOf).valueOf() / 1000);
         } else {
           continue;
@@ -23,8 +23,8 @@
       const parsed = Number.parseInt(key);
       numbers.push(parsed);
     }
-    const reponse = await fetch(`/api/chat-room/${data.room.id}`, {
-      method: 'POST',
+    const reponse = await fetch(`/api/chat-room/mute/${data.room.id}`, {
+      method: "POST",
       body: JSON.stringify({
         ids: numbers,
         end_time: endDate,
@@ -34,9 +34,8 @@
 </script>
 
 <div class="sticky">
-  <input form="main-form" type="reset" value="Reset" />
   <input form="main-form" type="submit" value="Mute" />
-  <input form="main-form" type="date" name="end-date" required />
+  <input form="main-form" type="datetime-local" name="end-date" required />
 </div>
 
 <form id="main-form" on:submit={submitFunction}>
@@ -46,7 +45,9 @@
         <div>
           <label title={member_id.toString()}>
             <input type="checkbox" name={member_id.toString()} />
-            <span class="kind-{member_kind} rel-{data.users.get(member_id)?.relationship}">{data.users.get(member_id)?.displayName}</span>
+            <span class="kind-{member_kind} rel-{data.users.get(member_id)?.relationship}"
+              >{data.users.get(member_id)?.displayName}</span
+            >
             <a href="/user/{member_id}">(profile)</a>
           </label>
         </div>
@@ -68,5 +69,10 @@
     & div {
       margin-top: 0.5em;
     }
+  }
+
+  input[type="submit"] {
+    background-color: azure;
+    padding: 1ex;
   }
 </style>

@@ -13,7 +13,7 @@ export function getOriginalRequest(ev: { platform: any | undefined }) {
 
 export function redirectToAuth(url: URL, user: IUser | null | undefined) {
   if (user == null) {
-    if (url.pathname !== '/authentication') throw redirect(307, '/authentication');
+    if (url.pathname !== '/auth') throw redirect(307, '/auth');
   } else if (user.two_factor_authentication_required && !user.is_two_factor_authenticated) {
     if (url.pathname !== '/authentication') throw redirect(307, '/authentication');
   }

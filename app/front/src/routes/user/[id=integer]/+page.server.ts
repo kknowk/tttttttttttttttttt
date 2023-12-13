@@ -24,7 +24,7 @@ export async function load(ev: PageServerLoadEvent) {
     throw error(404);
   }
   const { win, lose } = await services.userService.get_game_result_counts(user_id);
-  const rangeRequest = createIRangeRequestWithUserFromURLSearchParams(user_id, ev.url.searchParams, 50, false);
+  const rangeRequest = createIRangeRequestWithUserFromURLSearchParams(user_id, ev.url.searchParams, undefined, false);
   if (rangeRequest === null) {
     throw error(400, 'invalid range request');
   }

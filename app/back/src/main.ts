@@ -30,15 +30,11 @@
 
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module.js';
-import { ServeStaticModule } from '@nestjs/serve-static'; // 追加
 import cookieParser from 'cookie-parser';
 import { join, dirname } from 'path';
 import { readFile } from 'fs/promises';
 import { fileURLToPath } from 'url';
 import { env } from 'process';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 
 async function bootstrap() {
   env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
@@ -50,12 +46,6 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     httpsOptions,
     bodyParser: false,
-  });
-
-  // // ServeStaticModuleを使用して静的ファイルの設定を行う
-  ServeStaticModule.forRoot({
-    rootPath: join(__dirname, '..', '..', 'front', 'static'), // 静的ファイルのディレクトリ
-    serveRoot: '/static', // URLプレフィックス
   });
   app.use(cookieParser());
   await app.listen(3000);

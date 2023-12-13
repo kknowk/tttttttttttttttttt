@@ -5,13 +5,15 @@ import {
   Post,
   Req,
   UseGuards,
-  InternalServerErrorException,
-  BadRequestException,
   Param,
   ParseIntPipe,
-  PayloadTooLargeException,
+  Header,
   UseInterceptors,
+  PayloadTooLargeException,
+  InternalServerErrorException,
+  BadRequestException,
   UnauthorizedException,
+  NotImplementedException,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import type { Request } from 'express';
@@ -263,5 +265,18 @@ export class ApiChatRoomController {
     }
     const rooms = await this.chatRoomService.get_not_member_rooms(rangeRequest);
     return rooms;
+  }
+
+  @Header('Content-Type', 'text/plain;charset=utf-8')
+  @Get('skyway-token')
+  async get_skyway_token(
+    @Req() req: Request
+  ) {
+    const user = req.user as IUser;
+    const token = await this.chatRoomService.get_skyway_token(user.id);
+    if (token === null) {
+      throw new NotImplementedException();
+    }
+    return token;
   }
 }

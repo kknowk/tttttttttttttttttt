@@ -23,7 +23,7 @@
 <ul>
   {#each data.friends as friend}
     <li>
-      <a href="/user/{friend.id}">{friend.displayName}</a>
+      <a class="name-link" href="/user/{friend.id}">{friend.displayName}</a>
       <div>
         {#if friend.activity_kind === 0}
           Logout
@@ -50,6 +50,21 @@
     & li {
       padding-top: 1ex;
       padding-bottom: 1ex;
+
+      & * {
+        margin-top: 10px;
+      }
+
+      & a {
+        text-decoration: none;
+        background-color: azure;
+        color: black;
+
+        &.name-link {
+          background-color: unset;
+        }
+      }
+
       & + li {
         border-top: solid;
       }

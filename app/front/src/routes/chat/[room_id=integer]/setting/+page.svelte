@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import type { PageData } from './$types';
-  import { goto } from '$app/navigation';
+  import { onMount } from "svelte";
+  import type { PageData } from "./$types";
+  import { goto } from "$app/navigation";
 
   let button: HTMLButtonElement;
   let nameElem: HTMLInputElement;
@@ -11,7 +11,7 @@
   export let data: PageData;
 
   function changeRadio(ev: Event) {
-    if (ev.target == null || !('value' in ev.target)) {
+    if (ev.target == null || !("value" in ev.target)) {
       return;
     }
     const value = Number.parseInt(ev.target.value as string);
@@ -30,14 +30,14 @@
 
   async function submitCallback() {
     const response = await fetch(`/api/chat-room/update/${data.room.id}`, {
-      method: 'POST',
+      method: "POST",
       body: JSON.stringify({
         name: nameElem.value,
         kind: data.room.kind,
         password: data.room.kind === 1 ? passwordElem.value : undefined,
       }),
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
     });
     if (response.ok) {
@@ -63,9 +63,9 @@
       }
     }
     if (!success) {
-      failureElem.style.display = 'block';
+      failureElem.style.display = "block";
       setTimeout(() => {
-        failureElem.style.display = 'none';
+        failureElem.style.display = "none";
         button.disabled = false;
       }, 3000);
     }
@@ -75,7 +75,14 @@
 <form on:submit={submitFunc}>
   <label>
     Name:
-    <input type="text" bind:this={nameElem} value={data.room.name} required minlength="1" maxlength="32" />
+    <input
+      type="text"
+      bind:this={nameElem}
+      value={data.room.name}
+      required
+      minlength="1"
+      maxlength="32"
+    />
   </label>
   <fieldset>
     <legend>Chat Room Accessibility Kind</legend>
@@ -100,7 +107,14 @@
   </fieldset>
   <label>
     Password(Minimum 8 letters):
-    <input type="password" name="password" bind:this={passwordElem} disabled={data.room.kind !== 1} minlength="8" />
+    <input
+      type="password"
+      name="password"
+      bind:this={passwordElem}
+      disabled={data.room.kind !== 1}
+      minlength="8"
+      autocomplete="current-password"
+    />
   </label>
   <div>
     <button type="submit" bind:this={button}>Update Chat Room Setting</button>

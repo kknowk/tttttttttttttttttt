@@ -13,6 +13,8 @@ import {
   UseInterceptors,
   Body,
   UploadedFile,
+  StreamableFile,
+  Res,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -22,22 +24,29 @@ import {
   UserRelationshipKind,
   fromStringToUserRelationshipKind,
 } from './user.entity.js';
-import { ConfigService } from '@nestjs/config';
 import { UserService } from './user.service.js';
-import { join } from 'path';
+import { dirname, join } from 'path';
 import { createIRangeRequestWithUserFromURLSearchParams } from '../utility/range-request.js';
 import { JwtUpdateInterceptor } from '../auth/jwt.update.interceptor.js';
-import { writeFile } from 'fs/promises';
+import { writeFile, access, constants } from 'fs/promises';
+import { JsonPipe } from '../custom-pipe/json-pipe.js';
+import { fileURLToPath } from 'url';
+import { createReadStream, mkdirSync } from 'fs';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 @UseGuards(AuthGuard('jwt'))
-@UseInterceptors(JwtUpdateInterceptor)
 @Controller('api/user')
 export class ApiUserController {
-  constructor(
-    private configService: ConfigService,
-    private userService: UserService,
-  ) {}
+  constructor(private userService: UserService) {
+    const directoryName = join(__dirname, '..', '..', 'images');
+    try {
+      mkdirSync(directoryName);
+    } catch {}
+  }
 
+  @UseInterceptors(JwtUpdateInterceptor)
   @Get('name/:id')
   async get_name(
     @Req() req: Request,
@@ -56,6 +65,7 @@ export class ApiUserController {
     return target_user.displayName;
   }
 
+  @UseInterceptors(JwtUpdateInterceptor)
   @Get('user/:id')
   async get_user(
     @Req() req: Request,
@@ -74,6 +84,15 @@ export class ApiUserController {
     return target_user;
   }
 
+  @UseInterceptors(JwtUpdateInterceptor)
+  @Post('users')
+  async get_users(@Req() req: Request, @Body(JsonPipe) body: number[]) {
+    const user = req.user as IUser;
+    const users = await this.userService.get_users(user.id, body);
+    return users;
+  }
+
+  @UseInterceptors(JwtUpdateInterceptor)
   @Get('find-by-partial-name/:name')
   async find_by_partial_name(@Req() req: Request, @Param('name') name: string) {
     const user = req.user as IUser;
@@ -91,6 +110,7 @@ export class ApiUserController {
     return users;
   }
 
+  @UseInterceptors(JwtUpdateInterceptor)
   @Post('set-relationship/:id/:relationship')
   async set_relationship(
     @Req() req: Request,
@@ -104,6 +124,7 @@ export class ApiUserController {
     await this.userService.set_relationship(user.id, id, relationship);
   }
 
+  @UseInterceptors(JwtUpdateInterceptor)
   @Post('get-notice')
   async get_notice(@Req() req: Request) {
     const user = req.user as IUser;
@@ -125,6 +146,7 @@ export class ApiUserController {
     return answer;
   }
 
+  @UseInterceptors(JwtUpdateInterceptor)
   @Get('get-notice-count')
   async get_notice_count(@Req() req: Request) {
     const user = req.user as IUser;
@@ -143,12 +165,14 @@ export class ApiUserController {
     return answer;
   }
 
+  @UseInterceptors(JwtUpdateInterceptor)
   @Post('clear-notice')
   async clear_notice(@Req() req: Request) {
     const user = req.user as IUser;
     await this.userService.clear_notice(user.id);
   }
 
+  @UseInterceptors(JwtUpdateInterceptor)
   @Post('change-settings')
   @UseInterceptors(
     FileInterceptor('user-icon', {
@@ -178,45 +202,73 @@ export class ApiUserController {
       if (!(await this.userService.isValidPngFile(file.buffer))) {
         throw new BadRequestException('invalid file');
       }
+      const path = join(__dirname, '..', '..', 'images', `icon-${user.id}.png`);
       try {
-        await writeFile(
-          join(this.configService.get('ICON_PATH'), `${user.id}.png`),
-          file.buffer,
-          {
-            encoding: 'binary',
-          },
-        );
+        await writeFile(path, file.buffer, {
+          encoding: 'binary',
+        });
       } catch (error) {
         throw new InternalServerErrorException(error);
       }
     }
-    const promises = [] as Promise<any>[];
     const name = body['user-name'];
     if (name != null) {
-      promises.push(this.userService.set_display_name(user.id, name));
+      await this.userService.set_display_name(user.id, name);
+      user.displayName = name;
     }
     const email = body['user-email'];
     if (email != null) {
-      promises.push(this.userService.set_email(user.id, email));
+      await this.userService.set_email(user.id, email);
     }
     const _2fa = body['user-2fa'];
     if (_2fa != null) {
-      promises.push(
-        this.userService.set_two_factor_authentication_required(
-          user.id,
-          _2fa === 'on',
-        ),
+      await this.userService.set_two_factor_authentication_required(
+        user.id,
+        _2fa === 'on',
       );
-    }
-    if (promises.length > 0) {
-      await Promise.all(promises);
+      user.two_factor_authentication_required = _2fa === 'on';
     }
   }
 
+  @Get('icon/:user_id')
+  async get_icon(
+    @Req() req: Request,
+    @Param('user_id', ParseIntPipe) user_id: number,
+    @Res() res: Response,
+  ) {
+    const user = req.user as IUser;
+    if (user.id !== user_id) {
+      if (!(await this.userService.get_existence(user_id))) {
+        throw new NotFoundException();
+      }
+      const relationship = await this.userService.get_lowest_relationship(
+        user.id,
+        user_id,
+      );
+      if (relationship === UserRelationshipKind.banned) {
+        throw new UnauthorizedException();
+      }
+    }
+    const path = join(__dirname, '..', '..', 'images', `icon-${user_id}.png`);
+    try {
+      await access(path, constants.O_RDONLY);
+    } catch (error) {
+      console.error(error);
+      res.status(404);
+      res.json(error);
+      return;
+    }
+    res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Content-Disposition', 'inline');
+    const stream = createReadStream(path);
+    stream.pipe(res);
+  }
+
+  @UseInterceptors(JwtUpdateInterceptor)
   @Get('game-result-counts/:user_id')
   async get_game_result_counts(
     @Req() req: Request,
-    @Param('id', ParseIntPipe) user_id: number,
+    @Param('user_id', ParseIntPipe) user_id: number,
   ) {
     const user = req.user as IUser;
     if (!(await this.userService.get_existence(user_id))) {
@@ -233,10 +285,11 @@ export class ApiUserController {
     return result;
   }
 
+  @UseInterceptors(JwtUpdateInterceptor)
   @Get('game-logs/:user_id')
   async get_game_logs(
     @Req() req: Request,
-    @Param('id', ParseIntPipe) user_id: number,
+    @Param('user_id', ParseIntPipe) user_id: number,
   ) {
     const user = req.user as IUser;
     if (!(await this.userService.get_existence(user_id))) {

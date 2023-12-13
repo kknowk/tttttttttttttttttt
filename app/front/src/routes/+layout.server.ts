@@ -16,6 +16,9 @@ export async function load(ev: LayoutServerLoadEvent) {
       throw redirect(307, "/authentication");
     }
     if (ev.url.pathname === "/") {
+      if (ev.url.searchParams.has("should_redirect_to_settings")) {
+        throw redirect(307, "/home/setting");
+      }
       throw redirect(307, "/home");
     }
   }

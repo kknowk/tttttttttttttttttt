@@ -5,12 +5,14 @@
   import { goto } from "$app/navigation";
 
   export let data: PageData;
-  const administrators: number[] = [];
-  const normalMembers: number[] = [];
+  let administrators: number[] = [];
+  let normalMembers: number[] = [];
+  let inviteeMembers: number[] = [];
 
   $: (() => {
     administrators.splice(0, administrators.length);
     normalMembers.splice(0, normalMembers.length);
+    inviteeMembers.splice(0, inviteeMembers.length);
     if (data.members == null) {
       return;
     }
@@ -19,8 +21,13 @@
         administrators.push(key);
       } else if (kind === 1) {
         normalMembers.push(key);
+      } else if (kind === 0) {
+        inviteeMembers.push(key);
       }
     }
+    administrators = administrators;
+    normalMembers = normalMembers;
+    inviteeMembers = inviteeMembers;
   })();
 
   async function inviteFunc() {
@@ -37,6 +44,7 @@
         continue;
       }
       invitees.push(id);
+      inviteeMembers.push(id);
     }
     const response = await fetch("/api/matchmaking/invite", {
       method: "POST",
@@ -86,7 +94,7 @@
         <summary>Members</summary>
         <div>
           {#if administrators.length > 0}
-            <p>Administrators</p>
+            <h3>Administrators</h3>
             <ul>
               {#each administrators as member_id}
                 {#if member_id === data.user.id}
@@ -95,10 +103,6 @@
                   </li>
                 {:else if (data.users.get(member_id)?.relationship ?? -1) >= 0}
                   <li>
-                    <SetRelationshipButtons
-                      user_id={member_id}
-                      user_relationship={data.users.get(member_id)?.relationship ?? 0}
-                    />
                     <a href="/user/{member_id}">{data.users.get(member_id)?.displayName}</a>
                   </li>
                 {/if}
@@ -106,7 +110,7 @@
             </ul>
           {/if}
           {#if normalMembers.length > 0}
-            <p>Members</p>
+            <h3>Members</h3>
             <ul>
               {#each normalMembers as member_id}
                 {#if member_id === data.user.id}
@@ -115,10 +119,22 @@
                   </li>
                 {:else if (data.users.get(member_id)?.relationship ?? -1) >= 0}
                   <li>
-                    <SetRelationshipButtons
-                      user_id={member_id}
-                      user_relationship={data.users.get(member_id)?.relationship ?? 0}
-                    />
+                    <a href="/user/{member_id}">{data.users.get(member_id)?.displayName}</a>
+                  </li>
+                {/if}
+              {/each}
+            </ul>
+          {/if}
+          {#if inviteeMembers.length > 0}
+            <h3>Invitees</h3>
+            <ul>
+              {#each inviteeMembers as member_id}
+                {#if member_id === data.user.id}
+                  <li>
+                    <a href="/user/{data.user.id}">{data.user.displayName}</a>
+                  </li>
+                {:else if (data.users.get(member_id)?.relationship ?? -1) >= 0}
+                  <li>
                     <a href="/user/{member_id}">{data.users.get(member_id)?.displayName}</a>
                   </li>
                 {/if}
@@ -132,6 +148,10 @@
 </div>
 
 <style>
+  a:hover {
+    text-decoration: underline;
+  }
+
   .grid-container {
     display: grid;
     grid-template-columns: 1fr auto;
@@ -190,10 +210,18 @@
 
       & summary::before {
         content: "☰ ";
+        transition: background-color 0.2s;
       }
 
+      & summary:hover::before {
+        background-color: rgba(0, 0, 0, 0.13);
+      }
       & p {
         text-align: center;
+
+        & h3 {
+          text-decoration: underline;
+        }
       }
 
       & ul {
@@ -204,6 +232,7 @@
             display: block;
             text-decoration: none;
             text-align: center;
+            width: 100%;
           }
         }
       }

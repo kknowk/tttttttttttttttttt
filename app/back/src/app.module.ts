@@ -15,7 +15,10 @@ import {
   UserDetailInfo,
   UserRelationship,
 } from './user/user.entity.js';
-import { GameMatchingRequest, GameRoomPair } from './game-matching/game-matching.entity.js';
+import {
+  GameMatchingRequest,
+  GameRoomPair,
+} from './game-matching/game-matching.entity.js';
 import {
   ChatLog,
   ChatRoom,
@@ -137,6 +140,11 @@ export class AppModule implements NestModule {
           type: ['application/json', 'text/plain'],
         }),
       )
-      .forRoutes(ApiDirectMessageRoomController, ApiChatRoomController, ApiGameMatchingController);
+      .forRoutes(
+        ApiDirectMessageRoomController,
+        ApiChatRoomController,
+        ApiGameMatchingController,
+        ApiUserController,
+      );
   }
 }

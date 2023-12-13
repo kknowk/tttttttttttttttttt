@@ -63,10 +63,7 @@ export class AuthController {
     }
     const user = req.user as IUser;
     if (!(await this.authSerivce.update_jwt(user, res))) {
-      return;
-    }
-    if ('new' in user && user.new === true) {
-      res.redirect(307, '/home/setting');
+      res.status(500);
       return;
     }
     if (
@@ -74,6 +71,8 @@ export class AuthController {
       !user.is_two_factor_authenticated
     ) {
       res.redirect(307, '/authentication');
+    } else if ('new' in user && user.new === true) {
+      res.redirect(303, '/?should_redirect_to_settings=1');
     } else {
       res.redirect(303, '/');
     }
@@ -93,10 +92,19 @@ export class AuthController {
       user_id_number,
       displayName,
     );
-    if (await this.authSerivce.update_jwt(user, res)) {
-      res.status(307);
-      res.location('/home');
+    if (!(await this.authSerivce.update_jwt(user, res))) {
+      res.status(500);
       return;
+    }
+    if (
+      user.two_factor_authentication_required &&
+      !user.is_two_factor_authenticated
+    ) {
+      res.redirect(307, '/authentication');
+    } else if ('new' in user && user.new === true) {
+      res.redirect(303, '/?should_redirect_to_settings=1');
+    } else {
+      res.redirect(303, '/');
     }
   }
 

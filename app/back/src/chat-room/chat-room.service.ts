@@ -21,10 +21,13 @@ import {
 import { genSalt, hash } from 'bcrypt';
 import { Cron } from '@nestjs/schedule';
 import { UserService } from '../user/user.service.js';
+import { ConfigService } from '@nestjs/config';
+import { uuidV4, nowInSec, SkyWayAuthToken } from '@skyway-sdk/token';
 
 @Injectable()
 export class ChatRoomService {
   constructor(
+    configService: ConfigService,
     private dataSource: DataSource,
     private userService: UserService,
     @InjectRepository(UserRelationship)
@@ -35,7 +38,13 @@ export class ChatRoomService {
     private logRepository: Repository<ChatLog>,
     @InjectRepository(ChatRoomMembership)
     private membershipRepository: Repository<ChatRoomMembership>,
-  ) {}
+  ) {
+    this.#skyway_id = configService.get('SKYWAY_CLIENT_ID') ?? null;
+    this.#skyway_secret = configService.get('SKYWAY_CLIENT_SECRET') ?? null;
+  }
+
+  #skyway_id: string | null;
+  #skyway_secret: string | null;
 
   async get_belonging_rooms(
     rangeRequest: IRangeRequestWithUserId,
@@ -654,5 +663,46 @@ export class ChatRoomService {
       );
     }
     return log_id;
+  }
+
+  public async get_skyway_token(requester_id: number) {
+    if (this.#skyway_id === null || this.#skyway_secret === null) {
+      return null;
+    }
+    if (!(await this.userService.get_existence(requester_id))) {
+      return null;
+    }
+    const now = nowInSec();
+    const token = new SkyWayAuthToken({
+      iat: now,
+      exp: now + 3600 * 24 * 2,
+      jti: uuidV4(),
+      scope: {
+        app: {
+          id: this.#skyway_id,
+          actions: ['read'],
+          turn: false,
+          channels: [
+            {
+              name: '*',
+              actions: ['write'],
+              members: [
+                {
+                  name: `user-${requester_id}`,
+                  actions: ['write'],
+                  publication: {
+                    actions: ['write'],
+                  },
+                  subscription: {
+                    actions: ['write'],
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      },
+    }).encode(this.#skyway_secret);
+    return token;
   }
 }

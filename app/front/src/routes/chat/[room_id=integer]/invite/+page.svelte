@@ -58,7 +58,6 @@
         <input type="search" bind:value={user_name} />
       </label>
     </form>
-    <input type="reset" form="main-form" value="Reset" />
     <input type="submit" form="main-form" value="Invite" />
   </div>
   <form id="main-form" on:submit={submitFunction}>
@@ -96,5 +95,10 @@
 
   input[form="main-form"] {
     min-width: 20%;
+  }
+
+  input[type="submit"] {
+    background-color: azure;
+    padding: 1ex;
   }
 </style>

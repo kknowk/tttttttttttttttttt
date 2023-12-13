@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import {
   IUser,
   User,
@@ -17,7 +17,7 @@ import * as address from 'email-addresses';
 import { fileTypeFromBuffer } from 'file-type';
 import { ConfigService } from '@nestjs/config';
 import { writeFile } from 'fs/promises';
-import { join } from 'path';
+import { dirname, join } from 'path';
 import {
   IRangeRequestWithUserId,
   addWhereCondition,
@@ -26,6 +26,11 @@ import {
 import { InsertQueryBuilder } from 'typeorm/browser';
 import { genSalt, hash } from 'bcrypt';
 import { createCanvas, loadImage } from '@napi-rs/canvas';
+import { fileURLToPath } from 'url';
+import { imageSize } from 'image-size';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 @Injectable()
 export class UserService {
@@ -71,28 +76,32 @@ export class UserService {
     } = user.to_interface();
     answer.new = true;
     try {
-      const buffer = await this.createFirstIcon(user.id);
-      await writeFile(
-        join(this.configService.get('ICON_PATH'), `${user.id}.png`),
-        buffer,
-        {
-          encoding: 'binary',
-        },
-      );
+      await this.createFirstIcon(user.id);
     } finally {
       return answer;
     }
   }
 
-  private createFirstIcon(id: number) {
+  private async createFirstIcon(id: number) {
     const canvas = createCanvas(400, 400);
     const context = canvas.getContext('2d');
-    context.font = 'bold 24px sans-serif';
+    context.font = 'bold 64px sans-serif';
+    const randomColor =
+      '#' +
+      Math.floor(Math.random() * 0xffffff)
+        .toString(16)
+        .padStart(6, '0');
+    context.fillStyle = randomColor;
+    context.fillRect(0, 0, canvas.width, canvas.height);
     context.fillStyle = 'black';
     context.textAlign = 'center';
     context.textBaseline = 'middle';
     context.fillText(id.toString(), 200, 200);
-    return canvas.encode('png');
+    const buffer = await canvas.encode('png');
+    const path = join(__dirname, '..', '..', 'images', `icon-${id}.png`);
+    await writeFile(path, buffer, {
+      encoding: 'binary',
+    });
   }
 
   public async isValidPngFile(file: Buffer) {
@@ -101,8 +110,8 @@ export class UserService {
     if (type.ext !== 'png' && type.mime !== 'image/png') {
       return false;
     }
-    const image = await loadImage(file);
-    return image.height === 400 && image.width === 400;
+    const size = imageSize(file);
+    return size.width === size.height && size.width === 400;
   }
 
   public async test_find_or_create(
@@ -118,7 +127,15 @@ export class UserService {
     tmpUser.activity_kind = UserActivityKind.login;
     tmpUser.displayName = await this.#get_displayable_name(displayName);
     const user = await this.userRepository.save(tmpUser);
-    return user.to_interface();
+    const answer: IUser & {
+      new?: true;
+    } = user.to_interface();
+    answer.new = true;
+    try {
+      await this.createFirstIcon(user.id);
+    } finally {
+      return answer;
+    }
   }
 
   async #get_displayable_name(name: string): Promise<string> {
@@ -165,9 +182,9 @@ export class UserService {
     >[]
   > {
     /*
-		WITH "friends"("id") AS (SELECT "to_id" FROM "UserRelationship" WHERE "from_id"=$id AND "relationship"=1)
-		SELECT * FROM "User" AS "u" INNER JOIN "friends" AS "f" ON "u"."id"="f"."id";
-		*/
+    WITH "friends"("id") AS (SELECT "to_id" FROM "UserRelationship" WHERE "from_id"=$id AND "relationship"=1)
+    SELECT * FROM "User" AS "u" INNER JOIN "friends" AS "f" ON "u"."id"="f"."id";
+    */
     const query = this.userRelationshipRepository
       .createQueryBuilder()
       .select('to_id')
@@ -256,7 +273,9 @@ export class UserService {
   }
 
   public async set_display_name(user_id: number, name: string) {
-    if (name.length === 0 || name.length > 16) return;
+    if (name.length === 0 || name.length > 16) {
+      throw new BadRequestException('invalid name');
+    }
     const result = (
       await this.userRepository
         .createQueryBuilder()
@@ -285,7 +304,9 @@ export class UserService {
 
   public async set_email(user_id: number, email: string) {
     const result = address.default.parseOneAddress(email);
-    if (result == null) return 0;
+    if (result == null) {
+      throw new BadRequestException('invalid email');
+    }
     const exe_result = await this.userDetailInfoRepository
       .createQueryBuilder()
       .update()
@@ -301,9 +322,9 @@ export class UserService {
     name: string,
   ): Promise<IUserWithRelationship[]> {
     /*
-		SELECT * FROM "User" LEFT JOIN "UserRelationship" ON "User"."Id" = "UserRelationship"."to_id" AND "UserRelationship"."to_id"
-			WHERE "u.displayName" LIKE "%:name%";
-		*/
+    SELECT * FROM "User" LEFT JOIN "UserRelationship" ON "User"."Id" = "UserRelationship"."to_id" AND "UserRelationship"."to_id"
+      WHERE "u.displayName" LIKE "%:name%";
+    */
     let query = this.userRepository
       .createQueryBuilder('u')
       .select('u.id', 'id')
@@ -333,12 +354,24 @@ export class UserService {
     const query = this.userRepository
       .createQueryBuilder('u')
       .select('u.displayName', 'displayName')
-      .where('id=:user_id', { user_id });
+      .where('u.id=:user_id', { user_id });
     const result = await query.getRawOne();
     if (result == null) {
       return null;
     }
     return result.displayName;
+  }
+
+  public async get_display_names(
+    user_ids: number[],
+  ): Promise<{ id: number; displayName: string }[]> {
+    const query = this.userRepository
+      .createQueryBuilder('u')
+      .addSelect('u.id', 'id')
+      .select('u.displayName', 'displayName')
+      .where('u.id IN (:...user_ids)', { user_ids });
+    const result = await query.getRawMany();
+    return result;
   }
 
   public async get_users(

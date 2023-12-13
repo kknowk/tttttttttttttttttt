@@ -54,7 +54,7 @@
 <form on:submit={submitFunc}>
   <label class="grid-container">
     Name:
-    <input type="text" bind:this={nameElem} minlength="1" maxlength="32" />
+    <input type="text" bind:this={nameElem} minlength="1" maxlength="32" autocomplete="off" />
   </label>
   <fieldset>
     <legend>Chat Room Accessibility Kind</legend>
@@ -85,6 +85,7 @@
       bind:this={passwordElem}
       disabled={selectedKind !== 1}
       minlength="8"
+      autocomplete="off"
     />
   </label>
   <div>
@@ -129,5 +130,10 @@
   button {
     padding: 1ex;
     width: 100%;
+	transition: background-color 0.2s;
+  }
+
+  button:hover {
+	background-color: #f0ab5b;
   }
 </style>
